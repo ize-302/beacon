@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ize-302/beacon/backend/internal"
+	"github.com/ize-302/beacon/backend/internal/assignments"
 	"github.com/ize-302/beacon/backend/internal/database"
+	"github.com/ize-302/beacon/backend/internal/riders"
+	"github.com/ize-302/beacon/backend/internal/vehicles"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
@@ -37,36 +39,42 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	h := &internal.Handler{
+	h := &database.Handler{
 		DB: db,
 	}
 
+	ridersHandler := &riders.Handler{Handler: h}
+
+	vehiclesHandler := &vehicles.Handler{Handler: h}
+
+	assignmentsHandler := &assignments.Handler{Handler: h}
+
 	// riders
-	mux.HandleFunc("POST /riders", h.CreateRider)
+	mux.HandleFunc("POST /riders", ridersHandler.CreateRider)
 
-	mux.HandleFunc("GET /riders", h.FetchRiders)
+	mux.HandleFunc("GET /riders", ridersHandler.FetchRiders)
 
-	mux.HandleFunc("GET /riders/{id}", h.FetchRider)
+	mux.HandleFunc("GET /riders/{id}", ridersHandler.FetchRider)
 
-	mux.HandleFunc("DELETE /riders/{id}", h.DeleteRider)
+	mux.HandleFunc("DELETE /riders/{id}", ridersHandler.DeleteRider)
 
 	// vehicles
-	mux.HandleFunc("POST /vehicles", h.CreateVehicle)
+	mux.HandleFunc("POST /vehicles", vehiclesHandler.CreateVehicle)
 
-	mux.HandleFunc("GET /vehicles", h.FetchVehicles)
+	mux.HandleFunc("GET /vehicles", vehiclesHandler.FetchVehicles)
 
-	mux.HandleFunc("GET /vehicles/{id}", h.FetchVehicle)
+	mux.HandleFunc("GET /vehicles/{id}", vehiclesHandler.FetchVehicle)
 
-	mux.HandleFunc("DELETE /vehicles/{id}", h.DeleteVehicle)
+	mux.HandleFunc("DELETE /vehicles/{id}", vehiclesHandler.DeleteVehicle)
 
 	// assignments
-	mux.HandleFunc("POST /vehicle-assignments", h.AssignRiderToVehicle)
+	mux.HandleFunc("POST /vehicle-assignments", assignmentsHandler.AssignRiderToVehicle)
 
-	mux.HandleFunc("GET /vehicle-assignments", h.FetchAssignments)
+	mux.HandleFunc("GET /vehicle-assignments", assignmentsHandler.FetchAssignments)
 
-	mux.HandleFunc("GET /vehicle-assignments/{id}", h.FetchAssignment)
+	mux.HandleFunc("GET /vehicle-assignments/{id}", assignmentsHandler.FetchAssignment)
 
-	mux.HandleFunc("DELETE /vehicle-assignments/{id}", h.UnassignRiderFromVehicle)
+	mux.HandleFunc("DELETE /vehicle-assignments/{id}", assignmentsHandler.UnassignRiderFromVehicle)
 
 	// auditlogs
 	// mux.HandleFunc("GET /logs", FetchLogs)

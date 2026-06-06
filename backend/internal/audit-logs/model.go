@@ -1,27 +1,5 @@
-// Package models
-package models
-
-type Vehicle struct {
-	ID          int    `json:"id"`
-	PlateNumber string `json:"plate_number"`
-}
-
-type Rider struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-}
-
-type AssignmentRequest struct {
-	ID        int `json:"id"`
-	VehicleID int `json:"vehicle_id"`
-	RiderID   int `json:"rider_id"`
-}
-
-type AssignmentResponse struct {
-	ID      int      `json:"id"`
-	Vehicle *Vehicle `json:"vehicle"`
-	Rider   *Rider   `json:"rider"`
-}
+// Package auditlogs
+package auditlogs
 
 type Action string
 
