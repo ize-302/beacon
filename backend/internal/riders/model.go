@@ -2,6 +2,6 @@
 package riders
 
 type Rider struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID   int
+	Name string
 }

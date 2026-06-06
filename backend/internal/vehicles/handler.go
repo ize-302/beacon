@@ -14,33 +14,38 @@ type Handler struct {
 }
 
 func (h *Handler) CreateVehicle(w http.ResponseWriter, r *http.Request) {
-	var vehicle Vehicle
-	err := json.NewDecoder(r.Body).Decode(&vehicle)
+	var createVehicleRequest CreateVehicleRequest
+	vehicle := Vehicle{}
+	err := json.NewDecoder(r.Body).Decode(&createVehicleRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if vehicle.PlateNumber == "" {
+	if createVehicleRequest.PlateNumber == "" {
 		http.Error(w, "plate_number is required", http.StatusBadRequest)
 		return
 	}
 
 	sqlStatement := `INSERT INTO vehicles (plate_number) VALUES ($1) RETURNING id, plate_number;`
-	err = h.DB.QueryRow(sqlStatement, vehicle.PlateNumber).Scan(&vehicle.ID, &vehicle.PlateNumber)
+	err = h.DB.QueryRow(sqlStatement, createVehicleRequest.PlateNumber).Scan(&vehicle.ID, &vehicle.PlateNumber)
 	if err != nil {
 		panic(err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(vehicle)
+
+	response := &VehicleResponse{
+		ID:          vehicle.ID,
+		PlateNumber: vehicle.PlateNumber,
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *Handler) FetchVehicles(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	var vehicles []Vehicle
+	var vehicles []VehicleResponse
 
 	sqlStatement := `SELECT id, plate_number FROM vehicles;`
 	rows, err := h.DB.Query(sqlStatement)
@@ -50,7 +55,7 @@ func (h *Handler) FetchVehicles(w http.ResponseWriter, r *http.Request) {
 
 	defer rows.Close()
 	for rows.Next() {
-		var vehicle Vehicle
+		var vehicle VehicleResponse
 		err = rows.Scan(&vehicle.ID, &vehicle.PlateNumber)
 		if err != nil {
 			panic(err)
@@ -86,9 +91,13 @@ func (h *Handler) FetchVehicle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "vehicle not found", http.StatusNotFound)
 	case nil:
 		w.Header().Set("Content-Type", "application/json")
-
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(vehicle)
+
+		response := &VehicleResponse{
+			ID:          vehicle.ID,
+			PlateNumber: vehicle.PlateNumber,
+		}
+		json.NewEncoder(w).Encode(response)
 	default:
 		panic(err)
 	}

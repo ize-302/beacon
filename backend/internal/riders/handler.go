@@ -14,33 +14,37 @@ type Handler struct {
 }
 
 func (h *Handler) CreateRider(w http.ResponseWriter, r *http.Request) {
-	var rider Rider
-	err := json.NewDecoder(r.Body).Decode(&rider)
+	var createRiderRequest CreateRiderRequest
+	rider := Rider{}
+	err := json.NewDecoder(r.Body).Decode(&createRiderRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if rider.Name == "" {
+	if createRiderRequest.Name == "" {
 		http.Error(w, "name is required", http.StatusBadRequest)
 		return
 	}
 
 	sqlStatement := `INSERT INTO riders (name) VALUES ($1) RETURNING id, name;`
-	err = h.DB.QueryRow(sqlStatement, rider.Name).Scan(&rider.ID, &rider.Name)
+	err = h.DB.QueryRow(sqlStatement, createRiderRequest.Name).Scan(&rider.ID, &rider.Name)
 	if err != nil {
 		panic(err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(rider)
+	response := &RiderResponse{
+		ID:   rider.ID,
+		Name: rider.Name,
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *Handler) FetchRiders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	var riders []Rider
+	var riders []RiderResponse
 
 	sqlStatement := `SELECT r.id, r.name FROM riders r;`
 	rows, err := h.DB.Query(sqlStatement)
@@ -50,7 +54,7 @@ func (h *Handler) FetchRiders(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var rider Rider
+		var rider RiderResponse
 
 		err = rows.Scan(&rider.ID, &rider.Name)
 		if err != nil {
@@ -90,7 +94,11 @@ func (h *Handler) FetchRider(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(rider)
+		response := &RiderResponse{
+			ID:   rider.ID,
+			Name: rider.Name,
+		}
+		json.NewEncoder(w).Encode(response)
 	default:
 		panic(err)
 	}
