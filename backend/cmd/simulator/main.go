@@ -1,129 +1,25 @@
 package main
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"math/rand/v2"
-	"net/http"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/ize-302/beacon/backend/cmd/simulator/api"
 	"github.com/ize-302/beacon/backend/cmd/simulator/models"
-	"github.com/ize-302/beacon/backend/internal/locations"
-	"github.com/ize-302/beacon/backend/internal/vehicles"
 )
 
 var files = []string{"abayomi-drive.json", "adekunle-street-yaba.json", "adetola-street-yaba.json", "akoka-road.json", "commercial-avenue-yaba.json", "iwaya-road-yaba.json", "sabo-road-yaba.json", "tejuosho-street.json", "university-road.json", "yaba-herbert-macaulay-way.json"}
-
-func fileReaderWorker(w int, jobsChan chan string, routesChan chan [][]float64, mu *sync.Mutex, wg *sync.WaitGroup) {
-	_ = w
-	defer wg.Done()
-	for job := range jobsChan {
-		path := fmt.Sprintf("./data/%v", job)
-		_ = mu
-		mu.Lock()
-		content, err := os.ReadFile(path)
-		if err != nil {
-			log.Fatal(err)
-		}
-		var route models.Route
-		err = json.Unmarshal(content, &route)
-		if err != nil {
-			log.Fatal(err)
-		}
-		mu.Unlock()
-		// message := fmt.Sprintf("wkr %d => %s route\n", w, route.Name)
-		// fmt.Println(message)
-		routesChan <- route.Coordinates
-	}
-}
-
-func fetchVehicles() ([]vehicles.VehicleResponse, error) {
-	resp, err := http.Get("http://localhost:8080/vehicles")
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-	fmt.Println("status: ", resp.Status)
-
-	resBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	vehicles := []vehicles.VehicleResponse{}
-
-	if err = json.Unmarshal(resBody, &vehicles); err != nil {
-		return nil, err
-	}
-	return vehicles, nil
-}
-
-func sendLocationUpdate(payload models.GpsPayload) {
-	fmt.Printf("Vehicle: %d [Lat: %f Lng %f]\n", payload.VehicleID, payload.Longitude, payload.Latitude)
-	tpayload := locations.CreateLocation{VehicleID: payload.VehicleID, Latitude: payload.Latitude, Longitude: payload.Longitude}
-	jsonData, err := json.Marshal(tpayload)
-	if err != nil {
-		panic(err)
-	}
-	bodyReader := bytes.NewReader(jsonData)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://localhost:8080/locations", bodyReader)
-	if err != nil {
-		panic(err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-}
-
-func ticker(w int, gpsChan chan models.Gps, wg *sync.WaitGroup) {
-	_ = w
-	defer wg.Done()
-	for gps := range gpsChan {
-		randomSpeed := rand.IntN(9) + 1
-
-		t := time.NewTicker(time.Duration(randomSpeed) * time.Second)
-
-		for range t.C {
-			gps.CurrentIndex++
-
-			if gps.CurrentIndex >= len(gps.Routes) {
-				gps.CurrentIndex = 0
-			}
-
-			location := gps.Routes[gps.CurrentIndex]
-			gpsPayload := models.GpsPayload{
-				VehicleID: gps.VehicleID,
-				Latitude:  location[0],
-				Longitude: location[1],
-			}
-
-			sendLocationUpdate(gpsPayload)
-		}
-		t.Stop()
-	}
-}
 
 func main() {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
-	vehicles, err := fetchVehicles()
+	vehicles, err := api.APIFetchVehicles()
 	if err != nil {
 		log.Fatalf("Error parsing JSON: %v", err)
 	}
@@ -165,4 +61,55 @@ func main() {
 		go ticker(i, gpsChan, &tickerWg)
 	}
 	tickerWg.Wait()
+}
+
+func fileReaderWorker(w int, jobsChan chan string, routesChan chan [][]float64, mu *sync.Mutex, wg *sync.WaitGroup) {
+	_ = w
+	defer wg.Done()
+	for job := range jobsChan {
+		path := fmt.Sprintf("cmd/simulator/data/%v", job)
+		_ = mu
+		mu.Lock()
+		content, err := os.ReadFile(path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		var route models.Route
+		err = json.Unmarshal(content, &route)
+		if err != nil {
+			log.Fatal(err)
+		}
+		mu.Unlock()
+		// message := fmt.Sprintf("wkr %d => %s route\n", w, route.Name)
+		// fmt.Println(message)
+		routesChan <- route.Coordinates
+	}
+}
+
+func ticker(w int, gpsChan chan models.Gps, wg *sync.WaitGroup) {
+	_ = w
+	defer wg.Done()
+	for gps := range gpsChan {
+		randomSpeed := rand.IntN(9) + 1
+
+		t := time.NewTicker(time.Duration(randomSpeed) * time.Second)
+
+		for range t.C {
+			gps.CurrentIndex++
+
+			if gps.CurrentIndex >= len(gps.Routes) {
+				gps.CurrentIndex = 0
+			}
+
+			location := gps.Routes[gps.CurrentIndex]
+			gpsPayload := models.GpsPayload{
+				VehicleID: gps.VehicleID,
+				Latitude:  location[0],
+				Longitude: location[1],
+			}
+
+			api.APISendLocationUpdate(gpsPayload)
+		}
+		t.Stop()
+	}
 }
