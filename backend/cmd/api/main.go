@@ -49,8 +49,9 @@ func main() {
 	if err != nil {
 		fmt.Println("Error occured while seeding db", err)
 		return
+	} else {
+		fmt.Println("successfully seeded database")
 	}
-	fmt.Println("successfully seeded database")
 
 	ridersHandler := &riders.Handler{Handler: h}
 

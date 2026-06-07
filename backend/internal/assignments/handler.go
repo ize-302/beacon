@@ -10,7 +10,15 @@ import (
 	"github.com/ize-302/beacon/backend/internal/database"
 	"github.com/ize-302/beacon/backend/internal/riders"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
+
+	_ "embed"
 )
+
+//go:embed queries/insert_assignment.sql
+var insertAssignment string
+
+//go:embed queries/select_assignments.sql
+var selectAssignments string
 
 type Handler struct {
 	*database.Handler
@@ -28,24 +36,7 @@ func (h *Handler) AssignRiderToVehicle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sqlStatement := `
-		WITH inserted AS (
-			INSERT INTO assignments (vehicle_id, rider_id)
-			VALUES ($1, $2)
-			RETURNING id, vehicle_id, rider_id
-		)
-		SELECT
-			i.id,
-			v.id,
-			v.plate_number,
-			r.id,
-			r.name
-		FROM inserted i
-		JOIN vehicles v ON v.id = i.vehicle_id
-		JOIN riders r ON r.id = i.rider_id
-	`
-
-	err = h.DB.QueryRow(sqlStatement, createAssignmentRequest.VehicleID, createAssignmentRequest.RiderID).Scan(&assignment.ID, &assignment.Vehicle.ID, &assignment.Vehicle.PlateNumber, &assignment.Rider.ID, &assignment.Rider.Name)
+	err = h.DB.QueryRow(insertAssignment, createAssignmentRequest.VehicleID, createAssignmentRequest.RiderID).Scan(&assignment.ID, &assignment.Vehicle.ID, &assignment.Vehicle.PlateNumber, &assignment.Rider.ID, &assignment.Rider.Name)
 	if err != nil {
 		panic(err)
 	}
@@ -71,18 +62,7 @@ func (h *Handler) FetchAssignments(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var assignments []AssignmentResponse
 
-	query := `
-		SELECT 
-			a.id AS assignment_id,
-			v.id AS vehicle_id, 
-			v.plate_number, 
-			r.id AS rider_id, 
-			r.name AS rider_name
-		FROM assignments a
-		INNER JOIN vehicles v ON a.vehicle_id = v.id
-		INNER JOIN riders r ON a.rider_id = r.id
-	`
-	rows, err := h.DB.Query(query)
+	rows, err := h.DB.Query(selectAssignments)
 	if err != nil {
 		panic(err)
 	}

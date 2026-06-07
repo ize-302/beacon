@@ -7,7 +7,21 @@ import (
 	"strconv"
 
 	"github.com/ize-302/beacon/backend/internal/database"
+
+	_ "embed"
 )
+
+//go:embed queries/insert_vehicle.sql
+var insertVehicle string
+
+//go:embed queries/select_vehicles.sql
+var selectVehicles string
+
+//go:embed queries/select_vehicle.sql
+var selectVehicle string
+
+//go:embed queries/delete_vehicle.sql
+var deleteVehicle string
 
 type Handler struct {
 	*database.Handler
@@ -27,8 +41,7 @@ func (h *Handler) CreateVehicle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sqlStatement := `INSERT INTO vehicles (plate_number) VALUES ($1) RETURNING id, plate_number, created_at;`
-	err = h.DB.QueryRow(sqlStatement, createVehicleRequest.PlateNumber).Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.CreatedAt)
+	err = h.DB.QueryRow(insertVehicle, createVehicleRequest.PlateNumber).Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.CreatedAt)
 	if err != nil {
 		panic(err)
 	}
@@ -48,8 +61,7 @@ func (h *Handler) FetchVehicles(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var vehicles []VehicleResponse
 
-	sqlStatement := `SELECT id, plate_number, created_at FROM vehicles;`
-	rows, err := h.DB.Query(sqlStatement)
+	rows, err := h.DB.Query(selectVehicles)
 	if err != nil {
 		panic(err)
 	}
@@ -74,8 +86,7 @@ func (h *Handler) FetchVehicles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getVehicleByID(id int) *sql.Row {
-	sqlStatement := `SELECT id, plate_number, created_at FROM vehicles WHERE id = $1;`
-	row := h.DB.QueryRow(sqlStatement, id)
+	row := h.DB.QueryRow(selectVehicle, id)
 	return row
 }
 
@@ -117,8 +128,7 @@ func (h *Handler) DeleteVehicle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "vehicle not found", http.StatusNotFound)
 	case nil:
 		w.Header().Set("Content-Type", "application/json")
-		sqlStatement := `DELETE FROM vehicles WHERE id = $1`
-		_ = h.DB.QueryRow(sqlStatement, id)
+		_ = h.DB.QueryRow(deleteVehicle, id)
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		panic(err)

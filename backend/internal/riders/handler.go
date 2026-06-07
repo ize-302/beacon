@@ -6,8 +6,22 @@ import (
 	"net/http"
 	"strconv"
 
+	_ "embed"
+
 	"github.com/ize-302/beacon/backend/internal/database"
 )
+
+//go:embed queries/insert_rider.sql
+var insertRider string
+
+//go:embed queries/select_riders.sql
+var selectRiders string
+
+//go:embed queries/select_rider.sql
+var selectRider string
+
+//go:embed queries/delete_rider.sql
+var deleteRider string
 
 type Handler struct {
 	*database.Handler
@@ -27,8 +41,7 @@ func (h *Handler) CreateRider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sqlStatement := `INSERT INTO riders (name) VALUES ($1) RETURNING id, name, created_at;`
-	err = h.DB.QueryRow(sqlStatement, createRiderRequest.Name).Scan(&rider.ID, &rider.Name, &rider.CreatedAt)
+	err = h.DB.QueryRow(insertRider, createRiderRequest.Name).Scan(&rider.ID, &rider.Name, &rider.CreatedAt)
 	if err != nil {
 		panic(err)
 	}
@@ -47,8 +60,7 @@ func (h *Handler) FetchRiders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var riders []RiderResponse
 
-	sqlStatement := `SELECT r.id, r.name, r.created_at FROM riders r;`
-	rows, err := h.DB.Query(sqlStatement)
+	rows, err := h.DB.Query(selectRiders)
 	if err != nil {
 		panic(err)
 	}
@@ -75,8 +87,7 @@ func (h *Handler) FetchRiders(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getRider(id int) *sql.Row {
-	sqlStatement := `SELECT id, name, created_at FROM riders WHERE id = $1;`
-	row := h.DB.QueryRow(sqlStatement, id)
+	row := h.DB.QueryRow(selectRider, id)
 	return row
 }
 
@@ -118,8 +129,7 @@ func (h *Handler) DeleteRider(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "user not found", http.StatusNotFound)
 	case nil:
 		w.Header().Set("Content-Type", "application/json")
-		sqlStatement := `DELETE FROM riders WHERE id = $1`
-		_ = h.DB.QueryRow(sqlStatement, id)
+		_ = h.DB.QueryRow(deleteRider, id)
 		w.WriteHeader(http.StatusNoContent)
 	default:
 		panic(err)

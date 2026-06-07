@@ -7,7 +7,15 @@ import (
 
 	"github.com/ize-302/beacon/backend/internal/database"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
+
+	_ "embed"
 )
+
+//go:embed queries/insert_location.sql
+var insertLocation string
+
+//go:embed queries/select_locations.sql
+var selectLocations string
 
 type Handler struct {
 	*database.Handler
@@ -38,25 +46,7 @@ func (h *Handler) SaveLocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sqlStatement := `
-		WITH inserted AS (
-			INSERT INTO locations (vehicle_id, latitude, longitude)
-			VALUES ($1, $2, $3)
-			RETURNING id, vehicle_id, latitude, longitude, created_at 
-		)
-		SELECT
-			i.id,
-			i.latitude,
-			i.longitude,
-			i.created_at,
-			v.id,
-			v.plate_number,
-			v.created_at
-		FROM inserted i
-		JOIN vehicles v ON v.id = i.vehicle_id
-	`
-
-	err = h.DB.QueryRow(sqlStatement, createLocation.VehicleID, createLocation.Latitude, createLocation.Longitude).Scan(&location.ID, &location.Latitude, &location.Longitude, &location.CreatedAt, &location.Vehicle.ID, &location.Vehicle.PlateNumber, &location.Vehicle.CreatedAt)
+	err = h.DB.QueryRow(insertLocation, createLocation.VehicleID, createLocation.Latitude, createLocation.Longitude).Scan(&location.ID, &location.Latitude, &location.Longitude, &location.CreatedAt, &location.Vehicle.ID, &location.Vehicle.PlateNumber, &location.Vehicle.CreatedAt)
 	if err != nil {
 		panic(err)
 	}
@@ -82,19 +72,7 @@ func (h *Handler) FetchLocations(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var locations []LocationResponse
 
-	query := `
-		SELECT 
-			l.id AS location_id,
-			l.latitude AS location_latitude,
-			l.longitude AS location_longitude,
-			l.created_at AS location_created_at,
-			v.id AS vehicle_id, 
-			v.plate_number, 
-			v.created_at
-		FROM locations l
-		INNER JOIN vehicles v ON l.vehicle_id = v.id
-	`
-	rows, err := h.DB.Query(query)
+	rows, err := h.DB.Query(selectLocations)
 	if err != nil {
 		panic(err)
 	}
