@@ -8,6 +8,7 @@ import (
 
 	"github.com/ize-302/beacon/backend/internal/assignments"
 	"github.com/ize-302/beacon/backend/internal/database"
+	"github.com/ize-302/beacon/backend/internal/locations"
 	"github.com/ize-302/beacon/backend/internal/riders"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
 	"github.com/joho/godotenv"
@@ -43,11 +44,21 @@ func main() {
 		DB: db,
 	}
 
+	// SEED DATABASE
+	err = h.SeedDB()
+	if err != nil {
+		fmt.Println("Error occured while seeding db", err)
+		return
+	}
+	fmt.Println("successfully seeded database")
+
 	ridersHandler := &riders.Handler{Handler: h}
 
 	vehiclesHandler := &vehicles.Handler{Handler: h}
 
 	assignmentsHandler := &assignments.Handler{Handler: h}
+
+	locationsHandler := &locations.Handler{Handler: h}
 
 	// riders
 	mux.HandleFunc("POST /riders", ridersHandler.CreateRider)
@@ -75,6 +86,11 @@ func main() {
 	mux.HandleFunc("GET /vehicle-assignments/{id}", assignmentsHandler.FetchAssignment)
 
 	mux.HandleFunc("DELETE /vehicle-assignments/{id}", assignmentsHandler.UnassignRiderFromVehicle)
+
+	// locations
+	mux.HandleFunc("POST /locations", locationsHandler.SaveLocation)
+
+	mux.HandleFunc("GET /locations", locationsHandler.FetchLocations)
 
 	// auditlogs
 	// mux.HandleFunc("GET /logs", FetchLogs)

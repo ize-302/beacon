@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ize-302/beacon/backend/cmd/simulator/models"
+	"github.com/ize-302/beacon/backend/internal/locations"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
 )
 
@@ -62,7 +65,30 @@ func fetchVehicles() ([]vehicles.VehicleResponse, error) {
 }
 
 func sendLocationUpdate(payload models.GpsPayload) {
-	fmt.Printf("Vehicle: %d [Lat: %f Lng %f]\n", payload.VehicleID, payload.Latitude, payload.Longitude)
+	fmt.Printf("Vehicle: %d [Lat: %f Lng %f]\n", payload.VehicleID, payload.Longitude, payload.Latitude)
+	tpayload := locations.CreateLocation{VehicleID: payload.VehicleID, Latitude: payload.Latitude, Longitude: payload.Longitude}
+	jsonData, err := json.Marshal(tpayload)
+	if err != nil {
+		panic(err)
+	}
+	bodyReader := bytes.NewReader(jsonData)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://localhost:8080/locations", bodyReader)
+	if err != nil {
+		panic(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
 }
 
 func ticker(w int, gpsChan chan models.Gps, wg *sync.WaitGroup) {

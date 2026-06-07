@@ -1,6 +1,8 @@
 package assignments
 
 import (
+	"time"
+
 	"github.com/ize-302/beacon/backend/internal/riders"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
 )
@@ -12,7 +14,8 @@ type CreateAssignmentRequest struct {
 }
 
 type AssignmentResponse struct {
-	ID      int                       `json:"id"`
-	Vehicle *vehicles.VehicleResponse `json:"vehicle"`
-	Rider   *riders.RiderResponse     `json:"rider"`
+	ID        int                       `json:"id"`
+	Vehicle   *vehicles.VehicleResponse `json:"vehicle"`
+	Rider     *riders.RiderResponse     `json:"rider"`
+	CreatedAt time.Time                 `json:"created_at"`
 }

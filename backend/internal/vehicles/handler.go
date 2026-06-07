@@ -27,8 +27,8 @@ func (h *Handler) CreateVehicle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sqlStatement := `INSERT INTO vehicles (plate_number) VALUES ($1) RETURNING id, plate_number;`
-	err = h.DB.QueryRow(sqlStatement, createVehicleRequest.PlateNumber).Scan(&vehicle.ID, &vehicle.PlateNumber)
+	sqlStatement := `INSERT INTO vehicles (plate_number) VALUES ($1) RETURNING id, plate_number, created_at;`
+	err = h.DB.QueryRow(sqlStatement, createVehicleRequest.PlateNumber).Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.CreatedAt)
 	if err != nil {
 		panic(err)
 	}
@@ -39,6 +39,7 @@ func (h *Handler) CreateVehicle(w http.ResponseWriter, r *http.Request) {
 	response := &VehicleResponse{
 		ID:          vehicle.ID,
 		PlateNumber: vehicle.PlateNumber,
+		CreatedAt:   vehicle.CreatedAt,
 	}
 	json.NewEncoder(w).Encode(response)
 }
@@ -47,7 +48,7 @@ func (h *Handler) FetchVehicles(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var vehicles []VehicleResponse
 
-	sqlStatement := `SELECT id, plate_number FROM vehicles;`
+	sqlStatement := `SELECT id, plate_number, created_at FROM vehicles;`
 	rows, err := h.DB.Query(sqlStatement)
 	if err != nil {
 		panic(err)
@@ -56,7 +57,7 @@ func (h *Handler) FetchVehicles(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	for rows.Next() {
 		var vehicle VehicleResponse
-		err = rows.Scan(&vehicle.ID, &vehicle.PlateNumber)
+		err = rows.Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.CreatedAt)
 		if err != nil {
 			panic(err)
 		}
@@ -73,7 +74,7 @@ func (h *Handler) FetchVehicles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getVehicleByID(id int) *sql.Row {
-	sqlStatement := `SELECT id, plate_number FROM vehicles WHERE id = $1;`
+	sqlStatement := `SELECT id, plate_number, created_at FROM vehicles WHERE id = $1;`
 	row := h.DB.QueryRow(sqlStatement, id)
 	return row
 }
@@ -86,7 +87,7 @@ func (h *Handler) FetchVehicle(w http.ResponseWriter, r *http.Request) {
 
 	var vehicle Vehicle
 	row := h.getVehicleByID(id)
-	switch err := row.Scan(&vehicle.ID, &vehicle.PlateNumber); err {
+	switch err := row.Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.CreatedAt); err {
 	case sql.ErrNoRows:
 		http.Error(w, "vehicle not found", http.StatusNotFound)
 	case nil:
@@ -96,6 +97,7 @@ func (h *Handler) FetchVehicle(w http.ResponseWriter, r *http.Request) {
 		response := &VehicleResponse{
 			ID:          vehicle.ID,
 			PlateNumber: vehicle.PlateNumber,
+			CreatedAt:   vehicle.CreatedAt,
 		}
 		json.NewEncoder(w).Encode(response)
 	default:

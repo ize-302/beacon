@@ -27,8 +27,8 @@ func (h *Handler) CreateRider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sqlStatement := `INSERT INTO riders (name) VALUES ($1) RETURNING id, name;`
-	err = h.DB.QueryRow(sqlStatement, createRiderRequest.Name).Scan(&rider.ID, &rider.Name)
+	sqlStatement := `INSERT INTO riders (name) VALUES ($1) RETURNING id, name, created_at;`
+	err = h.DB.QueryRow(sqlStatement, createRiderRequest.Name).Scan(&rider.ID, &rider.Name, &rider.CreatedAt)
 	if err != nil {
 		panic(err)
 	}
@@ -36,8 +36,9 @@ func (h *Handler) CreateRider(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	response := &RiderResponse{
-		ID:   rider.ID,
-		Name: rider.Name,
+		ID:        rider.ID,
+		Name:      rider.Name,
+		CreatedAt: rider.CreatedAt,
 	}
 	json.NewEncoder(w).Encode(response)
 }
@@ -46,7 +47,7 @@ func (h *Handler) FetchRiders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var riders []RiderResponse
 
-	sqlStatement := `SELECT r.id, r.name FROM riders r;`
+	sqlStatement := `SELECT r.id, r.name, r.created_at FROM riders r;`
 	rows, err := h.DB.Query(sqlStatement)
 	if err != nil {
 		panic(err)
@@ -56,7 +57,7 @@ func (h *Handler) FetchRiders(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var rider RiderResponse
 
-		err = rows.Scan(&rider.ID, &rider.Name)
+		err = rows.Scan(&rider.ID, &rider.Name, &rider.CreatedAt)
 		if err != nil {
 			panic(err)
 		}
@@ -74,7 +75,7 @@ func (h *Handler) FetchRiders(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getRider(id int) *sql.Row {
-	sqlStatement := `SELECT id, name FROM riders WHERE id = $1;`
+	sqlStatement := `SELECT id, name, created_at FROM riders WHERE id = $1;`
 	row := h.DB.QueryRow(sqlStatement, id)
 	return row
 }
@@ -87,7 +88,7 @@ func (h *Handler) FetchRider(w http.ResponseWriter, r *http.Request) {
 
 	var rider Rider
 	row := h.getRider(id)
-	switch err := row.Scan(&rider.ID, &rider.Name); err {
+	switch err := row.Scan(&rider.ID, &rider.Name, &rider.CreatedAt); err {
 	case sql.ErrNoRows:
 		http.Error(w, "rider not found", http.StatusNotFound)
 	case nil:
@@ -95,8 +96,9 @@ func (h *Handler) FetchRider(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusOK)
 		response := &RiderResponse{
-			ID:   rider.ID,
-			Name: rider.Name,
+			ID:        rider.ID,
+			Name:      rider.Name,
+			CreatedAt: rider.CreatedAt,
 		}
 		json.NewEncoder(w).Encode(response)
 	default:
