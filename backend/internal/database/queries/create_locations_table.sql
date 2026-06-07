@@ -2,6 +2,6 @@ CREATE TABLE IF NOT EXISTS locations (
 	id SERIAL PRIMARY KEY,
 	latitude FLOAT NOT NULL,
 	longitude FLOAT NOT NULL,
-	vehicle_id INTEGER NOT NULL,
+	assignment_id INTEGER NOT NULL REFERENCES assignments(id),
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )

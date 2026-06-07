@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/ize-302/beacon/backend/cmd/simulator/models"
+	"github.com/ize-302/beacon/backend/internal/assignments"
 	"github.com/ize-302/beacon/backend/internal/locations"
-	"github.com/ize-302/beacon/backend/internal/vehicles"
 	"github.com/joho/godotenv"
 )
 
@@ -27,9 +27,9 @@ func handleBaseURL() string {
 	return fmt.Sprintf("http://localhost:%s", port)
 }
 
-func APIFetchVehicles() ([]vehicles.VehicleResponse, error) {
+func APIFetchAssignments() ([]assignments.AssignmentResponse, error) {
 	baseURL := handleBaseURL()
-	resp, err := http.Get(baseURL + "/vehicles")
+	resp, err := http.Get(baseURL + "/vehicle-assignments")
 	if err != nil {
 		panic(err)
 	}
@@ -41,22 +41,22 @@ func APIFetchVehicles() ([]vehicles.VehicleResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	vehicles := []vehicles.VehicleResponse{}
+	assignments := []assignments.AssignmentResponse{}
 
-	if err = json.Unmarshal(resBody, &vehicles); err != nil {
+	if err = json.Unmarshal(resBody, &assignments); err != nil {
 		return nil, err
 	}
-	return vehicles, nil
+	return assignments, nil
 }
 
 func APISendLocationUpdate(payload models.GpsPayload) {
-	fmt.Printf("Vehicle: %d [Lat: %f Lng %f]\n", payload.VehicleID, payload.Longitude, payload.Latitude)
-	tpayload := locations.CreateLocation{VehicleID: payload.VehicleID, Latitude: payload.Latitude, Longitude: payload.Longitude}
+	tpayload := locations.CreateLocation{AssignmentID: payload.AssignmentID, Latitude: payload.Latitude, Longitude: payload.Longitude}
 	jsonData, err := json.Marshal(tpayload)
 	if err != nil {
 		panic(err)
 	}
 	bodyReader := bytes.NewReader(jsonData)
+	_ = bodyReader
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -66,7 +66,6 @@ func APISendLocationUpdate(payload models.GpsPayload) {
 	if err != nil {
 		panic(err)
 	}
-
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
@@ -74,5 +73,8 @@ func APISendLocationUpdate(payload models.GpsPayload) {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("Assignment: %d [Lat: %f Lng %f]\n", payload.AssignmentID, payload.Longitude, payload.Latitude)
+
 	defer resp.Body.Close()
 }

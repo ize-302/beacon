@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/ize-302/beacon/backend/internal/assignments"
 	"github.com/ize-302/beacon/backend/internal/database"
+	"github.com/ize-302/beacon/backend/internal/riders"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
 
 	_ "embed"
@@ -24,15 +26,18 @@ type Handler struct {
 func (h *Handler) SaveLocation(w http.ResponseWriter, r *http.Request) {
 	var createLocation CreateLocation
 	location := LocationResponse{}
-	location.Vehicle = &vehicles.VehicleResponse{}
+	location.Assignment = &assignments.AssignmentResponse{}
+	location.Assignment.Vehicle = &vehicles.VehicleResponse{}
+	location.Assignment.Rider = &riders.RiderResponse{}
+
 	err := json.NewDecoder(r.Body).Decode(&createLocation)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if createLocation.VehicleID == 0 {
-		http.Error(w, "vehicle_id is required", http.StatusBadRequest)
+	if createLocation.AssignmentID == 0 {
+		http.Error(w, "assignment_id is required", http.StatusBadRequest)
 		return
 	}
 
@@ -46,7 +51,7 @@ func (h *Handler) SaveLocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.DB.QueryRow(insertLocation, createLocation.VehicleID, createLocation.Latitude, createLocation.Longitude).Scan(&location.ID, &location.Latitude, &location.Longitude, &location.CreatedAt, &location.Vehicle.ID, &location.Vehicle.PlateNumber, &location.Vehicle.CreatedAt)
+	err = h.DB.QueryRow(insertLocation, createLocation.AssignmentID, createLocation.Latitude, createLocation.Longitude).Scan(&location.ID, &location.Latitude, &location.Longitude, &location.CreatedAt, &location.Assignment.ID, &location.Assignment.CreatedAt, &location.Assignment.Vehicle.ID, &location.Assignment.Vehicle.PlateNumber, &location.Assignment.Vehicle.CreatedAt, &location.Assignment.Rider.ID, &location.Assignment.Rider.Name, &location.Assignment.Rider.CreatedAt)
 	if err != nil {
 		panic(err)
 	}
@@ -59,10 +64,17 @@ func (h *Handler) SaveLocation(w http.ResponseWriter, r *http.Request) {
 		Latitude:  location.Latitude,
 		Longitude: location.Longitude,
 		CreatedAt: location.CreatedAt,
-		Vehicle: &vehicles.VehicleResponse{
-			ID:          location.Vehicle.ID,
-			PlateNumber: location.Vehicle.PlateNumber,
-			CreatedAt:   location.Vehicle.CreatedAt,
+		Assignment: &assignments.AssignmentResponse{
+			Vehicle: &vehicles.VehicleResponse{
+				ID:          location.Assignment.Vehicle.ID,
+				PlateNumber: location.Assignment.Vehicle.PlateNumber,
+				CreatedAt:   location.Assignment.Vehicle.CreatedAt,
+			},
+			Rider: &riders.RiderResponse{
+				ID:        location.Assignment.Rider.ID,
+				Name:      location.Assignment.Rider.Name,
+				CreatedAt: location.Assignment.Rider.CreatedAt,
+			},
 		},
 	}
 	json.NewEncoder(w).Encode(response)
@@ -80,9 +92,11 @@ func (h *Handler) FetchLocations(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var location LocationResponse
-		location.Vehicle = &vehicles.VehicleResponse{}
+		location.Assignment = &assignments.AssignmentResponse{}
+		location.Assignment.Vehicle = &vehicles.VehicleResponse{}
+		location.Assignment.Rider = &riders.RiderResponse{}
 
-		err = rows.Scan(&location.ID, &location.Latitude, &location.Longitude, &location.CreatedAt, &location.Vehicle.ID, &location.Vehicle.PlateNumber, &location.Vehicle.CreatedAt)
+		err = rows.Scan(&location.ID, &location.Latitude, &location.Longitude, &location.CreatedAt, &location.Assignment.ID, &location.Assignment.CreatedAt, &location.Assignment.Vehicle.ID, &location.Assignment.Vehicle.PlateNumber, &location.Assignment.Vehicle.CreatedAt, &location.Assignment.Rider.ID, &location.Assignment.Rider.Name, &location.Assignment.Rider.CreatedAt)
 		if err != nil {
 			panic(err)
 		}

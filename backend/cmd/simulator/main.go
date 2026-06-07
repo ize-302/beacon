@@ -19,14 +19,14 @@ func main() {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
-	vehicles, err := api.APIFetchVehicles()
+	assignments, err := api.APIFetchAssignments()
 	if err != nil {
 		log.Fatalf("Error parsing JSON: %v", err)
 	}
 
 	jobsChan := make(chan string, len(files))
 	routesChan := make(chan [][]float64, len(files))
-	gpsChan := make(chan models.Gps, len(vehicles))
+	gpsChan := make(chan models.Gps, len(assignments))
 
 	// queue files as jobs in channel
 	for _, file := range files {
@@ -46,17 +46,17 @@ func main() {
 	}()
 
 	// populate each vehicle with routes
-	for _, v := range vehicles {
+	for _, a := range assignments {
 		gpsChan <- models.Gps{
-			VehicleID: v.ID,
-			Routes:    <-routesChan,
+			AssignmentID: a.ID,
+			Routes:       <-routesChan,
 		}
 	}
 	close(gpsChan)
 
 	// spinup len(vehicles) goroutine to manage tick for each gps
 	var tickerWg sync.WaitGroup
-	for i := range len(vehicles) {
+	for i := range len(assignments) {
 		tickerWg.Add(1)
 		go ticker(i, gpsChan, &tickerWg)
 	}
@@ -103,9 +103,9 @@ func ticker(w int, gpsChan chan models.Gps, wg *sync.WaitGroup) {
 
 			location := gps.Routes[gps.CurrentIndex]
 			gpsPayload := models.GpsPayload{
-				VehicleID: gps.VehicleID,
-				Latitude:  location[0],
-				Longitude: location[1],
+				AssignmentID: gps.AssignmentID,
+				Latitude:     location[0],
+				Longitude:    location[1],
 			}
 
 			api.APISendLocationUpdate(gpsPayload)
