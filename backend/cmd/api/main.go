@@ -6,10 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ize-302/beacon/backend/internal/assignments"
 	"github.com/ize-302/beacon/backend/internal/database"
-	"github.com/ize-302/beacon/backend/internal/locations"
-	"github.com/ize-302/beacon/backend/internal/riders"
+	"github.com/ize-302/beacon/backend/internal/gps"
+	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
 	"github.com/ize-302/beacon/backend/internal/ws"
 	"github.com/joho/godotenv"
@@ -54,28 +53,28 @@ func main() {
 		fmt.Println("successfully seeded database")
 	}
 
-	ridersHandler := &riders.Handler{Handler: h}
+	gpsHandler := &gps.Handler{Handler: h}
 
 	vehiclesHandler := &vehicles.Handler{Handler: h}
 
-	assignmentsHandler := &assignments.Handler{Handler: h}
+	// assignmentsHandler := &assignments.Handler{Handler: h}
 
 	hub := ws.NewHub()
-	locationsHandler := &locations.Handler{Handler: h, Hub: hub}
+	gpspointsHandler := &gpspoints.Handler{Handler: h, Hub: hub}
 
 	socketHandler := &ws.Handler{Handler: h}
 
 	// websocket
 	mux.HandleFunc("/ws", socketHandler.WsHandler(hub))
 
-	// riders
-	mux.HandleFunc("POST /riders", ridersHandler.CreateRider)
+	// gpss
+	mux.HandleFunc("POST /gps", gpsHandler.CreateGps)
 
-	mux.HandleFunc("GET /riders", ridersHandler.FetchRiders)
+	mux.HandleFunc("GET /gps", gpsHandler.FetchGpss)
 
-	mux.HandleFunc("GET /riders/{id}", ridersHandler.FetchRider)
+	mux.HandleFunc("GET /gps/{id}", gpsHandler.FetchGps)
 
-	mux.HandleFunc("DELETE /riders/{id}", ridersHandler.DeleteRider)
+	mux.HandleFunc("DELETE /gps/{id}", gpsHandler.DeleteGps)
 
 	// vehicles
 	mux.HandleFunc("POST /vehicles", vehiclesHandler.CreateVehicle)
@@ -86,19 +85,10 @@ func main() {
 
 	mux.HandleFunc("DELETE /vehicles/{id}", vehiclesHandler.DeleteVehicle)
 
-	// assignments
-	mux.HandleFunc("POST /vehicle-assignments", assignmentsHandler.AssignRiderToVehicle)
+	// gps-points
+	mux.HandleFunc("POST /gps-points", gpspointsHandler.SaveGpsPoint)
 
-	mux.HandleFunc("GET /vehicle-assignments", assignmentsHandler.FetchAssignments)
-
-	mux.HandleFunc("GET /vehicle-assignments/{id}", assignmentsHandler.FetchAssignment)
-
-	mux.HandleFunc("DELETE /vehicle-assignments/{id}", assignmentsHandler.UnassignRiderFromVehicle)
-
-	// locations
-	mux.HandleFunc("POST /locations", locationsHandler.SaveLocation)
-
-	mux.HandleFunc("GET /locations", locationsHandler.FetchLocations)
+	mux.HandleFunc("GET /gps-points", gpspointsHandler.FetchGpsPoints)
 
 	// auditlogs
 	// mux.HandleFunc("GET /logs", FetchLogs)

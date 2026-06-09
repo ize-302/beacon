@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/ize-302/beacon/backend/cmd/simulator/models"
-	"github.com/ize-302/beacon/backend/internal/assignments"
-	"github.com/ize-302/beacon/backend/internal/locations"
+	"github.com/ize-302/beacon/backend/internal/gps"
+	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
 )
 
-func APIFetchAssignments(baseURL string) ([]assignments.AssignmentResponse, error) {
-	resp, err := http.Get(baseURL + "/vehicle-assignments")
+func APIFetchAssignments(baseURL string) ([]gps.GpsResponse, error) {
+	resp, err := http.Get(baseURL + "/gps")
 	if err != nil {
 		panic(err)
 	}
@@ -28,16 +28,16 @@ func APIFetchAssignments(baseURL string) ([]assignments.AssignmentResponse, erro
 	if err != nil {
 		return nil, err
 	}
-	assignments := []assignments.AssignmentResponse{}
+	gpss := []gps.GpsResponse{}
 
-	if err = json.Unmarshal(resBody, &assignments); err != nil {
+	if err = json.Unmarshal(resBody, &gpss); err != nil {
 		return nil, err
 	}
-	return assignments, nil
+	return gpss, nil
 }
 
 func APISendLocationUpdate(payload models.GpsPayload, baseURL string) {
-	tpayload := locations.CreateLocation{AssignmentID: payload.AssignmentID, Latitude: payload.Latitude, Longitude: payload.Longitude}
+	tpayload := gpspoints.CreateGpsPoint{GpsID: payload.GpsID, Latitude: payload.Latitude, Longitude: payload.Longitude}
 	jsonData, err := json.Marshal(tpayload)
 	if err != nil {
 		panic(err)
@@ -48,7 +48,7 @@ func APISendLocationUpdate(payload models.GpsPayload, baseURL string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/locations", bodyReader)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/gps-points", bodyReader)
 	if err != nil {
 		panic(err)
 	}
@@ -60,7 +60,7 @@ func APISendLocationUpdate(payload models.GpsPayload, baseURL string) {
 		panic(err)
 	}
 
-	fmt.Printf("Assignment: %d [Lat: %f Lng %f]\n", payload.AssignmentID, payload.Longitude, payload.Latitude)
+	fmt.Printf("GpsID: %d [Lat: %f Lng %f]\n", payload.GpsID, payload.Longitude, payload.Latitude)
 
 	defer resp.Body.Close()
 }

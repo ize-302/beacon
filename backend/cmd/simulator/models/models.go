@@ -8,13 +8,13 @@ type Route struct {
 
 type Gps struct {
 	ID           int         `json:"id"`
-	AssignmentID int         `json:"assignment_id"`
+	GpsID        int         `json:"gps_id"`
 	CurrentIndex int         `json:"current_index"`
 	Routes       [][]float64 `json:"routes"`
 }
 
 type GpsPayload struct {
-	AssignmentID int     `json:"assignment_id"`
-	Latitude     float64 `json:"latitude"`
-	Longitude    float64 `json:"longitude"`
+	GpsID     int     `json:"gps_id"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
 }

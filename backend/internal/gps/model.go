@@ -1,10 +1,11 @@
-package assignments
+// Package gps
+package gps
 
 import "time"
 
-type Assignment struct {
+type Gps struct {
 	ID        int
+	SN        string
 	VehicleID int
-	RiderID   int
 	CreatedAt time.Time
 }

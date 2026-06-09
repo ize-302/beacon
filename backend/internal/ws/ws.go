@@ -8,7 +8,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/ize-302/beacon/backend/internal/database"
-	"github.com/ize-302/beacon/backend/internal/locations"
+	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
 )
 
 type Handler struct {
@@ -46,7 +46,7 @@ func (h *Hub) Remove(conn *websocket.Conn) {
 	conn.Close()
 }
 
-func (h *Hub) Broadcast(m locations.CreateLocation) {
+func (h *Hub) Broadcast(m gpspoints.CreateGpsPoint) {
 	h.mu.RLock()
 
 	clients := make([]*websocket.Conn, 0, len(h.clients))
