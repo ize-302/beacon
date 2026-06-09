@@ -13,8 +13,8 @@ export default function DeclarativeMap() {
     map = new mapboxgl.Map({
       container: mapContainer,
       style: "mapbox://styles/mapbox/streets-v12",
-      center: [6.5103, 3.37936],
-      zoom: 9,
+      center: [3.37936, 6.5103], // mapbox uses [lng,lat] - which is different from googles/openstreetmap [lat,lng]
+      zoom: 12,
     });
 
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
