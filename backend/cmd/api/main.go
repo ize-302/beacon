@@ -11,6 +11,7 @@ import (
 	"github.com/ize-302/beacon/backend/internal/locations"
 	"github.com/ize-302/beacon/backend/internal/riders"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
+	"github.com/ize-302/beacon/backend/internal/ws"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
@@ -59,7 +60,13 @@ func main() {
 
 	assignmentsHandler := &assignments.Handler{Handler: h}
 
-	locationsHandler := &locations.Handler{Handler: h}
+	hub := ws.NewHub()
+	locationsHandler := &locations.Handler{Handler: h, Hub: hub}
+
+	socketHandler := &ws.Handler{Handler: h}
+
+	// websocket
+	mux.HandleFunc("/ws", socketHandler.WsHandler(hub))
 
 	// riders
 	mux.HandleFunc("POST /riders", ridersHandler.CreateRider)

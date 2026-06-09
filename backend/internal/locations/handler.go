@@ -21,6 +21,9 @@ var selectLocations string
 
 type Handler struct {
 	*database.Handler
+	Hub interface {
+		Broadcast(CreateLocation)
+	}
 }
 
 func (h *Handler) SaveLocation(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +81,11 @@ func (h *Handler) SaveLocation(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	json.NewEncoder(w).Encode(response)
+
+	// broadcast position
+	if h.Hub != nil {
+		h.Hub.Broadcast(createLocation)
+	}
 }
 
 func (h *Handler) FetchLocations(w http.ResponseWriter, r *http.Request) {
