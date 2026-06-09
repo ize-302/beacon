@@ -7,28 +7,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/ize-302/beacon/backend/cmd/simulator/models"
 	"github.com/ize-302/beacon/backend/internal/assignments"
 	"github.com/ize-302/beacon/backend/internal/locations"
-	"github.com/joho/godotenv"
 )
 
-func handleBaseURL() string {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-	port := os.Getenv("PORT")
-	return fmt.Sprintf("http://localhost:%s", port)
-}
-
-func APIFetchAssignments() ([]assignments.AssignmentResponse, error) {
-	baseURL := handleBaseURL()
+func APIFetchAssignments(baseURL string) ([]assignments.AssignmentResponse, error) {
 	resp, err := http.Get(baseURL + "/vehicle-assignments")
 	if err != nil {
 		panic(err)
@@ -49,7 +36,7 @@ func APIFetchAssignments() ([]assignments.AssignmentResponse, error) {
 	return assignments, nil
 }
 
-func APISendLocationUpdate(payload models.GpsPayload) {
+func APISendLocationUpdate(payload models.GpsPayload, baseURL string) {
 	tpayload := locations.CreateLocation{AssignmentID: payload.AssignmentID, Latitude: payload.Latitude, Longitude: payload.Longitude}
 	jsonData, err := json.Marshal(tpayload)
 	if err != nil {
@@ -61,7 +48,6 @@ func APISendLocationUpdate(payload models.GpsPayload) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	baseURL := handleBaseURL()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/locations", bodyReader)
 	if err != nil {
 		panic(err)

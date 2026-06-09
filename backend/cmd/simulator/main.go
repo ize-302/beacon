@@ -11,15 +11,24 @@ import (
 
 	"github.com/ize-302/beacon/backend/cmd/simulator/api"
 	"github.com/ize-302/beacon/backend/cmd/simulator/models"
+	"github.com/joho/godotenv"
 )
 
 var files = []string{"abayomi-drive.json", "adekunle-street-yaba.json", "adetola-street-yaba.json", "akoka-road.json", "commercial-avenue-yaba.json", "iwaya-road-yaba.json", "sabo-road-yaba.json", "tejuosho-street.json", "university-road.json", "yaba-herbert-macaulay-way.json"}
 
+var baseURL string
+
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+	baseURL = fmt.Sprintf("http://localhost:%s", os.Getenv("PORT"))
+
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
-	assignments, err := api.APIFetchAssignments()
+	assignments, err := api.APIFetchAssignments(baseURL)
 	if err != nil {
 		log.Fatalf("Error parsing JSON: %v", err)
 	}
@@ -108,7 +117,7 @@ func ticker(w int, gpsChan chan models.Gps, wg *sync.WaitGroup) {
 				Longitude:    location[1],
 			}
 
-			api.APISendLocationUpdate(gpsPayload)
+			api.APISendLocationUpdate(gpsPayload, baseURL)
 		}
 		t.Stop()
 	}
