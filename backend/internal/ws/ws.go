@@ -53,11 +53,13 @@ func (h *Hub) Broadcast(m locations.CreateLocation) {
 	for conn := range h.clients {
 		clients = append(clients, conn)
 	}
-
 	h.mu.RUnlock()
 
 	for _, conn := range clients {
-		if err := conn.WriteJSON(m); err != nil {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		err := conn.WriteJSON(m)
+		if err != nil {
 			h.Remove(conn)
 		}
 	}
