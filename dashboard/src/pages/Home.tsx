@@ -1,5 +1,11 @@
+import DeclarativeMap from "~/components/Map";
+
 const Home = () => {
-  return <div>Home</div>;
+  return (
+    <div class="bg-red-400 h-svh">
+      <DeclarativeMap />
+    </div>
+  );
 };
 
 export default Home;
