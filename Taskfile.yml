@@ -1,0 +1,26 @@
+
+version: '3'
+
+tasks:
+  api-service:
+    cmds:
+      - echo "Starting api-service..."
+      - cd backend && air -c .air.toml
+
+  simulator:
+    cmds:
+      - echo "Waiting for api-service..."
+      - until curl -sf http://localhost:8080/health > /dev/null; do sleep 1; done
+      - echo "Starting simulator..."
+      - cd backend && go run ./cmd/simulator/main.go
+
+  dashboard:
+    cmds:
+      - cd dashboard && npm run dev
+
+  dev:
+    deps:
+      - task: api-service
+      - task: simulator
+      - task: dashboard
+

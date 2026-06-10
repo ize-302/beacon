@@ -88,6 +88,7 @@ npm run dev
 
 | Method   | Path            | Description                                                    |
 | -------- | --------------- | -------------------------------------------------------------- |
+| `GET`    | `/health`       | Check API health                                               |
 | `GET`    | `/vehicles`     | List all vehicles                                              |
 | `POST`   | `/vehicles`     | Create a vehicle                                               |
 | `DELETE` | `/vehicles/:id` | Delete a vehicle                                               |
