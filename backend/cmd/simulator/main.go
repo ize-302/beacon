@@ -17,11 +17,13 @@ import (
 var baseURL string
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err)
+	if err := godotenv.Load(); err != nil {
+		log.Println("no .env file found, using environment variables")
 	}
-	baseURL = fmt.Sprintf("http://localhost:%s", os.Getenv("PORT"))
+	baseURL = os.Getenv("API_BASE_URL")
+	if baseURL == "" {
+		baseURL = fmt.Sprintf("http://localhost:%s", os.Getenv("PORT"))
+	}
 
 	gpss, err := apis.APIFetchGpss(baseURL)
 	if err != nil {
