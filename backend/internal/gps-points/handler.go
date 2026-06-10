@@ -48,7 +48,7 @@ func (h *Handler) SaveGpsPoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.DB.QueryRow(insertGpsPoint, createGpsPoint.GpsID, createGpsPoint.Bearing, createGpsPoint.Latitude, createGpsPoint.Longitude).Scan(&gpspoint.ID, &gpspoint.GpsID, &gpspoint.Bearing, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.CreatedAt)
+	err = h.DB.QueryRow(insertGpsPoint, createGpsPoint.GpsID, createGpsPoint.Bearing, createGpsPoint.Latitude, createGpsPoint.Longitude, createGpsPoint.Timestamp).Scan(&gpspoint.ID, &gpspoint.GpsID, &gpspoint.Bearing, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.Timestamp, &gpspoint.CreatedAt)
 	if err != nil {
 		panic(err)
 	}
@@ -56,13 +56,6 @@ func (h *Handler) SaveGpsPoint(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	// response := &GpsPointResponse{
-	// 	ID:        gpspoint.ID,
-	// 	GpsID:     gpspoint.GpsID,
-	// 	Latitude:  gpspoint.Latitude,
-	// 	Longitude: gpspoint.Longitude,
-	// 	CreatedAt: gpspoint.CreatedAt,
-	// }
 	json.NewEncoder(w).Encode(gpspoint)
 
 	// broadcast position
@@ -84,7 +77,7 @@ func (h *Handler) FetchGpsPoints(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var gpspoint GpsPointResponse
 
-		err = rows.Scan(&gpspoint.ID, &gpspoint.GpsID, &gpspoint.Bearing, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.CreatedAt)
+		err = rows.Scan(&gpspoint.ID, &gpspoint.GpsID, &gpspoint.Bearing, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.Timestamp, &gpspoint.CreatedAt)
 		if err != nil {
 			panic(err)
 		}

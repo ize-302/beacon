@@ -5,7 +5,7 @@ import type { Gps, WsCoordinate } from "~/types";
 import policeCarUrl from "~/components/vehicles/police-car.svg?url";
 
 const vehicleIcons = [policeCarUrl];
-const ANIM_DURATION = 1900;
+const DEFAULT_ANIM_DURATION = 4000;
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -25,17 +25,22 @@ export default function DeclarativeMap(props: {
   let map: mapboxgl.Map;
   const markerInstances = new Map<number, mapboxgl.Marker>();
   const markerAnimations = new Map<number, number>();
+  const markerTimestamps = new Map<number, number>();
   const [mapReady, setMapReady] = createSignal(false);
 
-  function animateMarker(marker: mapboxgl.Marker, id: number, toLng: number, toLat: number, bearing: number) {
+  function animateMarker(marker: mapboxgl.Marker, id: number, toLng: number, toLat: number, bearing: number, timestamp: number) {
     const prev = markerAnimations.get(id);
     if (prev !== undefined) cancelAnimationFrame(prev);
+
+    const lastTs = markerTimestamps.get(id);
+    const duration = lastTs ? timestamp - lastTs : DEFAULT_ANIM_DURATION;
+    markerTimestamps.set(id, timestamp);
 
     const from = marker.getLngLat();
     const startTime = performance.now();
 
     function step(now: number) {
-      const t = Math.min((now - startTime) / ANIM_DURATION, 1);
+      const t = Math.min((now - startTime) / duration, 1);
       marker.setLngLat([
         from.lng + (toLng - from.lng) * t,
         from.lat + (toLat - from.lat) * t,
@@ -103,7 +108,7 @@ export default function DeclarativeMap(props: {
       markerInstances.set(update.gps_id, marker);
     }
 
-    animateMarker(marker, update.gps_id, update.longitude, update.latitude, update.bearing);
+    animateMarker(marker, update.gps_id, update.longitude, update.latitude, update.bearing, update.timestamp);
   });
 
   onCleanup(() => {

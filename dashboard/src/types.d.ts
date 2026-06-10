@@ -3,6 +3,7 @@ type WsCoordinate = {
   latitude: number;
   longitude: number;
   bearing: number;
+  timestamp: number;
 };
 
 type Coordinate = {

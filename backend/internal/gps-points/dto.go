@@ -10,6 +10,7 @@ type CreateGpsPoint struct {
 	Bearing   float64 `json:"bearing"`
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
+	Timestamp int64   `json:"timestamp"`
 }
 
 type GpsPointResponse struct {
@@ -18,5 +19,6 @@ type GpsPointResponse struct {
 	Bearing   float64   `json:"bearing"`
 	Latitude  float64   `json:"latitude"`
 	Longitude float64   `json:"longitude"`
+	Timestamp int64     `json:"timestamp"`
 	CreatedAt time.Time `json:"created_at"`
 }
