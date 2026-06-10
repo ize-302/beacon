@@ -109,7 +109,8 @@ func StartSimulation(baseURL string, gps internalgps.GpsResponse, nodes map[int6
 	} else {
 		current = pickRandomNode(adj)
 	}
-	t := time.NewTicker(2 * time.Second)
+	randomSpeed := rand.Intn(9) + 1
+	t := time.NewTicker(time.Duration(randomSpeed) * time.Second)
 	defer t.Stop()
 
 	var path []int64
@@ -146,6 +147,7 @@ func StartSimulation(baseURL string, gps internalgps.GpsResponse, nodes map[int6
 				Latitude:  node.Lat,
 				Longitude: node.Lng,
 				Bearing:   computeBearing(prevNode, node),
+				Timestamp: time.Now().UnixMilli(),
 			}, baseURL)
 		}
 	}
