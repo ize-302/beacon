@@ -3,6 +3,7 @@ package movementengine
 
 import (
 	"context"
+	"math"
 	"math/rand"
 	"time"
 
@@ -21,8 +22,28 @@ func pickRandomNode(adj map[int64][]int64) int64 {
 	return keys[rand.Intn(len(keys))]
 }
 
+func closestNode(nodes map[int64]models.Node, lat, lng float64) int64 {
+	var closest int64
+	minDist := math.MaxFloat64
+	for id, n := range nodes {
+		latDiff := n.Lat - lat
+		lngDiff := n.Lng - lng
+		d := (latDiff * latDiff) + (lngDiff * lngDiff)
+		if d < minDist {
+			minDist = d
+			closest = id
+		}
+	}
+	return closest
+}
+
 func StartSimulation(baseURL string, gps internalgps.GpsResponse, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
-	current := pickRandomNode(adj)
+	var current int64
+	if gps.LastCoordinate != nil {
+		current = closestNode(nodes, gps.LastCoordinate.Latitude, gps.LastCoordinate.Longitude)
+	} else {
+		current = pickRandomNode(adj)
+	}
 	randomSpeed := rand.Intn(9) + 1
 	t := time.NewTicker(time.Duration(randomSpeed) * time.Second)
 	defer t.Stop()
