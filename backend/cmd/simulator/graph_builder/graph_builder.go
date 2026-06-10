@@ -50,12 +50,23 @@ func BuildGraph() (map[int64]models.Node, map[int64][]int64) {
 				continue
 			}
 
+			oneway := tags["oneway"]
+			// motorways are implicitly one-way in OSM
+			isOneway := oneway == "yes" || oneway == "1" || oneway == "true" || h == "motorway"
+			isReversed := oneway == "-1"
+
 			for i := 0; i < len(o.Nodes)-1; i++ {
 				from := int64(o.Nodes[i].ID)
 				to := int64(o.Nodes[i+1].ID)
 
-				adj[from] = append(adj[from], to)
-				adj[to] = append(adj[to], from)
+				if isReversed {
+					adj[to] = append(adj[to], from)
+				} else {
+					adj[from] = append(adj[from], to)
+					if !isOneway {
+						adj[to] = append(adj[to], from)
+					}
+				}
 			}
 		}
 	}
