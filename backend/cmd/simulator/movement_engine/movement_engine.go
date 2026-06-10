@@ -37,6 +37,42 @@ func closestNode(nodes map[int64]models.Node, lat, lng float64) int64 {
 	return closest
 }
 
+// Breadth-First Search: explores the graph layer by layer by finding the
+// shortedt possible path to a destination from a given current position. It also makes it
+// impossible to revisit a node because BFS marks nodes visited and never
+// includes duplicates in the path
+// Summary on how it works:
+// 1. Finds the shortest path from current position to that destination
+// 2. Walks that path one node per tick
+// 3. When it arrives, picks a new random destination and repeats
+// Learn more about BFS algorithm here: https://www.youtube.com/watch?v=HZ5YTanv5QE
+func bfsPath(adj map[int64][]int64, start, goal int64) []int64 {
+	if start == goal {
+		return []int64{start}
+	}
+	prev := map[int64]int64{start: -1}
+	queue := []int64{start}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, nb := range adj[cur] {
+			if _, visited := prev[nb]; visited {
+				continue
+			}
+			prev[nb] = cur
+			if nb == goal {
+				path := []int64{}
+				for n := goal; n != -1; n = prev[n] {
+					path = append([]int64{n}, path...)
+				}
+				return path
+			}
+			queue = append(queue, nb)
+		}
+	}
+	return nil // no path was found
+}
+
 func StartSimulation(baseURL string, gps internalgps.GpsResponse, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
 	var current int64
 	if gps.LastCoordinate != nil {
@@ -48,18 +84,29 @@ func StartSimulation(baseURL string, gps internalgps.GpsResponse, nodes map[int6
 	t := time.NewTicker(time.Duration(randomSpeed) * time.Second)
 	defer t.Stop()
 
+	var path []int64
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			neighbors := adj[current]
-			if len(neighbors) == 0 {
-				current = pickRandomNode(adj)
-				continue
+			// determine new path when current one is exhausted
+			for len(path) == 0 {
+				dest := pickRandomNode(adj)
+				if dest == current {
+					continue
+				}
+				path = bfsPath(adj, current, dest)
+				if len(path) > 1 {
+					path = path[1:] // drop current node
+				} else {
+					path = nil
+				}
 			}
-			next := neighbors[rand.Intn(len(neighbors))]
-			current = next
+
+			current = path[0]
+			path = path[1:]
 
 			node, ok := nodes[current]
 			if !ok {
