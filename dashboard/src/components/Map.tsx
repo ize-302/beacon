@@ -4,6 +4,8 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import type { Gps, WsCoordinate } from "~/types";
 import policeCarUrl from "~/components/vehicles/police-car.svg?url";
 
+const vehicleIcons = [policeCarUrl];
+
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 export default function DeclarativeMap(props: {
@@ -34,12 +36,13 @@ export default function DeclarativeMap(props: {
     markerInstances.clear();
 
     props.markers.forEach((gps) => {
+      if (!gps.last_coordinate) return;
       const { longitude, latitude } = gps.last_coordinate;
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
         `<strong>${gps.sn}</strong><br/>${gps.vehicle.plate_number}`,
       );
       const el = document.createElement("img");
-      el.src = policeCarUrl;
+      el.src = vehicleIcons[gps.id % vehicleIcons.length];
       el.style.width = "28px";
       el.style.height = "56px";
       const marker = new mapboxgl.Marker({ element: el })

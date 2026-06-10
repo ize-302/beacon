@@ -15,6 +15,6 @@ export type Gps = {
   id: number;
   sn: string;
   vehicle: { id: number; plate_number: string; created_at: string };
-  last_coordinate: Coordinate;
+  last_coordinate: Coordinate | null;
   created_at: string;
 };
