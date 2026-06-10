@@ -1,5 +1,7 @@
 # Beacon
 
+![Screenshot](screenshot.png)
+
 Real-time vehicle tracking system. Simulates GPS-equipped vehicles moving across Lagos road network and streams their positions to a live map dashboard.
 
 ## How it works
