@@ -43,8 +43,8 @@ export default function DeclarativeMap(props: {
       );
       const el = document.createElement("img");
       el.src = vehicleIcons[gps.id % vehicleIcons.length];
-      el.style.width = "28px";
-      el.style.height = "56px";
+      el.style.width = "20px";
+      el.style.height = "40px";
       const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([longitude, latitude])
         .setPopup(popup)
@@ -56,12 +56,29 @@ export default function DeclarativeMap(props: {
   // Move marker and rotate to face heading on WS update
   createEffect(() => {
     const update = props.liveUpdate;
-    if (!update) return;
-    const marker = markerInstances.get(update.gps_id);
-    if (marker) {
-      marker.setLngLat([update.longitude, update.latitude]);
-      marker.setRotation(update.bearing);
+    if (!update || !mapReady()) return;
+
+    let marker = markerInstances.get(update.gps_id);
+
+    if (!marker) {
+      const gps = props.markers?.find((g) => g.id === update.gps_id);
+      if (!gps) return;
+      const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
+        `<strong>${gps.sn}</strong><br/>${gps.vehicle.plate_number}`,
+      );
+      const el = document.createElement("img");
+      el.src = vehicleIcons[gps.id % vehicleIcons.length];
+      el.style.width = "28px";
+      el.style.height = "56px";
+      marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([update.longitude, update.latitude])
+        .setPopup(popup)
+        .addTo(map);
+      markerInstances.set(gps.id, marker);
     }
+
+    marker.setLngLat([update.longitude, update.latitude]);
+    marker.setRotation(update.bearing);
   });
 
   onCleanup(() => {
