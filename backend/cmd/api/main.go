@@ -32,9 +32,8 @@ func corsMiddleware(next http.Handler) http.Handler {
 func main() {
 	var err error
 
-	err = godotenv.Load()
-	if err != nil {
-		log.Fatal("")
+	if err = godotenv.Load(); err != nil {
+		log.Println("no .env file found, using environment variables")
 	}
 
 	host := os.Getenv("DB_HOST")
@@ -77,6 +76,11 @@ func main() {
 	gpspointsHandler := &gpspoints.Handler{Handler: h, Hub: hub}
 
 	socketHandler := &ws.Handler{Handler: h}
+
+	// health
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// websocket
 	mux.HandleFunc("/ws", socketHandler.WsHandler(hub))
