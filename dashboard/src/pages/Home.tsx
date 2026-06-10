@@ -6,6 +6,7 @@ import {
   Suspense,
 } from "solid-js";
 import DeclarativeMap from "~/components/Map";
+import AddPanel from "~/components/AddPanel";
 import { useGetGpss } from "~/queries/use-get-gpss";
 import type { WsCoordinate } from "~/types";
 
@@ -33,8 +34,9 @@ const Home = () => {
   return (
     <ErrorBoundary fallback={(err) => <div>Error: {err.message}</div>}>
       <Suspense fallback={<div>Loading markers...</div>}>
-        <div class="h-svh">
+        <div class="h-svh relative">
           <DeclarativeMap markers={gpss.data ?? []} liveUpdate={liveUpdate()} />
+          <AddPanel />
         </div>
       </Suspense>
     </ErrorBoundary>

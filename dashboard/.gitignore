@@ -24,3 +24,12 @@ dist-ssr
 *.sw?
 
 .env
+
+
+# API client generated artifacts
+src/client/docs/*.md
+src/client/git_push.sh
+src/client/.gitignore
+src/client/.npmignore
+src/client/.openapi-generator/
+src/client/.openapi-generator-ignore

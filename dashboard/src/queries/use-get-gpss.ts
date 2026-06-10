@@ -1,15 +1,12 @@
 import { useQuery } from "@tanstack/solid-query";
-import type { Gps } from "~/types";
-
-const baseUrl = import.meta.env.VITE_API_BASE_URL;
+import { gpsApi } from "~/api/client";
 
 export const useGetGpss = () => {
-  return useQuery<Gps[]>(() => ({
+  return useQuery(() => ({
     queryKey: ["gpss"],
     queryFn: async () => {
-      const result = await fetch(`${baseUrl}/gps`);
-      if (!result.ok) throw new Error("Failed to fetch GPS data");
-      return result.json();
+      const res = await gpsApi.gpsGet();
+      return res.data;
     },
   }));
 };

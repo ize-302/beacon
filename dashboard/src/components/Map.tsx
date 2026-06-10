@@ -1,7 +1,8 @@
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import type { Gps, WsCoordinate } from "~/types";
+import type { GpsGpsResponse } from "~/client/api";
+import type { WsCoordinate } from "~/types";
 import policeCarUrl from "~/components/vehicles/police-car.svg?url";
 
 const vehicleIcons = [policeCarUrl];
@@ -18,7 +19,7 @@ function makeMarkerEl(width: string, height: string, iconIndex: number) {
 }
 
 export default function DeclarativeMap(props: {
-  markers: Gps[];
+  markers: GpsGpsResponse[];
   liveUpdate: WsCoordinate | null;
 }) {
   let mapContainer!: HTMLDivElement;
@@ -76,15 +77,15 @@ export default function DeclarativeMap(props: {
 
     props.markers.forEach((gps) => {
       if (!gps.last_coordinate) return;
-      const { longitude, latitude } = gps.last_coordinate;
+      const { longitude, latitude } = gps.last_coordinate as Required<typeof gps.last_coordinate>;
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-        `<strong>${gps.sn}</strong><br/>${gps.vehicle.plate_number}`,
+        `<strong>${gps.sn}</strong><br/>${gps.vehicle?.plate_number}`,
       );
-      const marker = new mapboxgl.Marker({ element: makeMarkerEl("20px", "40px", gps.id % vehicleIcons.length) })
+      const marker = new mapboxgl.Marker({ element: makeMarkerEl("20px", "40px", (gps.id ?? 0) % vehicleIcons.length) })
         .setLngLat([longitude, latitude])
         .setPopup(popup)
         .addTo(map);
-      markerInstances.set(gps.id, marker);
+      markerInstances.set(gps.id!, marker);
     });
   });
 
@@ -99,9 +100,9 @@ export default function DeclarativeMap(props: {
       const gps = props.markers?.find((g) => g.id === update.gps_id);
       if (!gps) return;
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-        `<strong>${gps.sn}</strong><br/>${gps.vehicle.plate_number}`,
+        `<strong>${gps.sn}</strong><br/>${gps.vehicle?.plate_number}`,
       );
-      marker = new mapboxgl.Marker({ element: makeMarkerEl("28px", "56px", gps.id % vehicleIcons.length) })
+      marker = new mapboxgl.Marker({ element: makeMarkerEl("28px", "56px", (gps.id ?? 0) % vehicleIcons.length) })
         .setLngLat([update.longitude, update.latitude])
         .setPopup(popup)
         .addTo(map);
