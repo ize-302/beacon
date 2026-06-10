@@ -23,6 +23,14 @@ type Handler struct {
 	}
 }
 
+// @Summary      Record a GPS point
+// @Tags         gps-points
+// @Accept       json
+// @Produce      json
+// @Param        body body CreateGpsPoint true "GPS point payload"
+// @Success      201 {object} GpsPointResponse
+// @Failure      400 {string} string
+// @Router       /gps-points [post]
 func (h *Handler) SaveGpsPoint(w http.ResponseWriter, r *http.Request) {
 	var createGpsPoint CreateGpsPoint
 	gpspoint := GpsPointResponse{}
@@ -64,6 +72,11 @@ func (h *Handler) SaveGpsPoint(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary      List GPS points
+// @Tags         gps-points
+// @Produce      json
+// @Success      200 {array} GpsPointResponse
+// @Router       /gps-points [get]
 func (h *Handler) FetchGpsPoints(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var gpspoints []GpsPointResponse

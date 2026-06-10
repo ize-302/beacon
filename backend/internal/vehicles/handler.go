@@ -27,6 +27,14 @@ type Handler struct {
 	*database.Handler
 }
 
+// @Summary      Create a vehicle
+// @Tags         vehicles
+// @Accept       json
+// @Produce      json
+// @Param        body body CreateVehicleRequest true "Vehicle payload"
+// @Success      201 {object} VehicleResponse
+// @Failure      400 {string} string
+// @Router       /vehicles [post]
 func (h *Handler) CreateVehicle(w http.ResponseWriter, r *http.Request) {
 	var createVehicleRequest CreateVehicleRequest
 	vehicle := Vehicle{}
@@ -57,6 +65,11 @@ func (h *Handler) CreateVehicle(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// @Summary      List vehicles
+// @Tags         vehicles
+// @Produce      json
+// @Success      200 {array} VehicleResponse
+// @Router       /vehicles [get]
 func (h *Handler) FetchVehicles(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var vehicles []VehicleResponse
@@ -90,6 +103,13 @@ func (h *Handler) getVehicleByID(id int) *sql.Row {
 	return row
 }
 
+// @Summary      Get a vehicle
+// @Tags         vehicles
+// @Produce      json
+// @Param        id path int true "Vehicle ID"
+// @Success      200 {object} VehicleResponse
+// @Failure      404 {string} string
+// @Router       /vehicles/{id} [get]
 func (h *Handler) FetchVehicle(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
@@ -116,6 +136,12 @@ func (h *Handler) FetchVehicle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary      Delete a vehicle
+// @Tags         vehicles
+// @Param        id path int true "Vehicle ID"
+// @Success      204
+// @Failure      404 {string} string
+// @Router       /vehicles/{id} [delete]
 func (h *Handler) DeleteVehicle(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {

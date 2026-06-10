@@ -29,6 +29,14 @@ type Handler struct {
 	*database.Handler
 }
 
+// @Summary      Register a GPS device
+// @Tags         gps
+// @Accept       json
+// @Produce      json
+// @Param        body body CreateGpsRequest true "GPS payload"
+// @Success      201 {object} GpsResponse
+// @Failure      400 {string} string
+// @Router       /gps [post]
 func (h *Handler) CreateGps(w http.ResponseWriter, r *http.Request) {
 	var createGpsRequest CreateGpsRequest
 	gps := GpsResponse{}
@@ -60,6 +68,11 @@ func (h *Handler) CreateGps(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(gps)
 }
 
+// @Summary      List GPS devices
+// @Tags         gps
+// @Produce      json
+// @Success      200 {array} GpsResponse
+// @Router       /gps [get]
 func (h *Handler) FetchGpss(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var gpss []GpsResponse
@@ -109,6 +122,13 @@ func (h *Handler) getGps(id int) *sql.Row {
 	return row
 }
 
+// @Summary      Get a GPS device
+// @Tags         gps
+// @Produce      json
+// @Param        id path int true "GPS ID"
+// @Success      200 {object} GpsResponse
+// @Failure      404 {string} string
+// @Router       /gps/{id} [get]
 func (h *Handler) FetchGps(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
@@ -145,6 +165,12 @@ func (h *Handler) FetchGps(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary      Delete a GPS device
+// @Tags         gps
+// @Param        id path int true "GPS ID"
+// @Success      204
+// @Failure      404 {string} string
+// @Router       /gps/{id} [delete]
 func (h *Handler) DeleteGps(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {

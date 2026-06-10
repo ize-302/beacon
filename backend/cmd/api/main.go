@@ -1,3 +1,9 @@
+// @title          Beacon API
+// @version        1.0
+// @description    Real-time vehicle tracking API
+// @host           localhost:8080
+// @BasePath       /
+
 package main
 
 import (
@@ -6,6 +12,7 @@ import (
 	"net/http"
 	"os"
 
+	_ "github.com/ize-302/beacon/backend/docs"
 	"github.com/ize-302/beacon/backend/internal/database"
 	"github.com/ize-302/beacon/backend/internal/gps"
 	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
@@ -13,6 +20,7 @@ import (
 	"github.com/ize-302/beacon/backend/internal/ws"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -76,6 +84,9 @@ func main() {
 	gpspointsHandler := &gpspoints.Handler{Handler: h, Hub: hub}
 
 	socketHandler := &ws.Handler{Handler: h}
+
+	// swagger
+	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
 
 	// health
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,275 @@
+basePath: /
+definitions:
+  gps.Coordinate:
+    properties:
+      latitude:
+        type: number
+      longitude:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  gps.CreateGpsRequest:
+    properties:
+      sn:
+        type: string
+      vehicle_id:
+        type: integer
+    type: object
+  gps.GpsResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      last_coordinate:
+        $ref: '#/definitions/gps.Coordinate'
+      sn:
+        type: string
+      vehicle:
+        $ref: '#/definitions/vehicles.VehicleResponse'
+    type: object
+  gpspoints.CreateGpsPoint:
+    properties:
+      bearing:
+        type: number
+      gps_id:
+        type: integer
+      latitude:
+        type: number
+      longitude:
+        type: number
+      timestamp:
+        type: integer
+    type: object
+  gpspoints.GpsPointResponse:
+    properties:
+      bearing:
+        type: number
+      created_at:
+        type: string
+      gps_id:
+        type: integer
+      id:
+        type: integer
+      latitude:
+        type: number
+      longitude:
+        type: number
+      timestamp:
+        type: integer
+    type: object
+  vehicles.CreateVehicleRequest:
+    properties:
+      plate_number:
+        type: string
+    type: object
+  vehicles.VehicleResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      plate_number:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Real-time vehicle tracking API
+  title: Beacon API
+  version: "1.0"
+paths:
+  /gps:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/gps.GpsResponse'
+            type: array
+      summary: List GPS devices
+      tags:
+      - gps
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: GPS payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/gps.CreateGpsRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/gps.GpsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+      summary: Register a GPS device
+      tags:
+      - gps
+  /gps-points:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/gpspoints.GpsPointResponse'
+            type: array
+      summary: List GPS points
+      tags:
+      - gps-points
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: GPS point payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/gpspoints.CreateGpsPoint'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/gpspoints.GpsPointResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+      summary: Record a GPS point
+      tags:
+      - gps-points
+  /gps/{id}:
+    delete:
+      parameters:
+      - description: GPS ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Delete a GPS device
+      tags:
+      - gps
+    get:
+      parameters:
+      - description: GPS ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gps.GpsResponse'
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Get a GPS device
+      tags:
+      - gps
+  /vehicles:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/vehicles.VehicleResponse'
+            type: array
+      summary: List vehicles
+      tags:
+      - vehicles
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Vehicle payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/vehicles.CreateVehicleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/vehicles.VehicleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+      summary: Create a vehicle
+      tags:
+      - vehicles
+  /vehicles/{id}:
+    delete:
+      parameters:
+      - description: Vehicle ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Delete a vehicle
+      tags:
+      - vehicles
+    get:
+      parameters:
+      - description: Vehicle ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/vehicles.VehicleResponse'
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Get a vehicle
+      tags:
+      - vehicles
+swagger: "2.0"
