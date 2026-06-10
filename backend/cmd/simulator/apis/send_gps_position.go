@@ -13,13 +13,11 @@ import (
 )
 
 func APISendGpsPosition(payload gpspoints.CreateGpsPoint, baseURL string) {
-	tpayload := gpspoints.CreateGpsPoint{GpsID: payload.GpsID, Latitude: payload.Latitude, Longitude: payload.Longitude}
-	jsonData, err := json.Marshal(tpayload)
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		panic(err)
 	}
 	bodyReader := bytes.NewReader(jsonData)
-	_ = bodyReader
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

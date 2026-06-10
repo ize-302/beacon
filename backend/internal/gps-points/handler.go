@@ -48,7 +48,7 @@ func (h *Handler) SaveGpsPoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.DB.QueryRow(insertGpsPoint, createGpsPoint.GpsID, createGpsPoint.Latitude, createGpsPoint.Longitude).Scan(&gpspoint.ID, &gpspoint.GpsID, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.CreatedAt)
+	err = h.DB.QueryRow(insertGpsPoint, createGpsPoint.GpsID, createGpsPoint.Bearing, createGpsPoint.Latitude, createGpsPoint.Longitude).Scan(&gpspoint.ID, &gpspoint.GpsID, &gpspoint.Bearing, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.CreatedAt)
 	if err != nil {
 		panic(err)
 	}
@@ -84,7 +84,7 @@ func (h *Handler) FetchGpsPoints(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var gpspoint GpsPointResponse
 
-		err = rows.Scan(&gpspoint.ID, &gpspoint.GpsID, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.CreatedAt)
+		err = rows.Scan(&gpspoint.ID, &gpspoint.GpsID, &gpspoint.Bearing, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.CreatedAt)
 		if err != nil {
 			panic(err)
 		}

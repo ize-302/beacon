@@ -2,6 +2,7 @@ import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { Gps, WsCoordinate } from "~/types";
+import policeCarUrl from "~/components/vehicles/police-car.svg?url";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -37,7 +38,11 @@ export default function DeclarativeMap(props: {
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
         `<strong>${gps.sn}</strong><br/>${gps.vehicle.plate_number}`,
       );
-      const marker = new mapboxgl.Marker()
+      const el = document.createElement("img");
+      el.src = policeCarUrl;
+      el.style.width = "28px";
+      el.style.height = "56px";
+      const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([longitude, latitude])
         .setPopup(popup)
         .addTo(map);
@@ -45,12 +50,15 @@ export default function DeclarativeMap(props: {
     });
   });
 
-  // Move marker on WS update
+  // Move marker and rotate to face heading on WS update
   createEffect(() => {
     const update = props.liveUpdate;
     if (!update) return;
     const marker = markerInstances.get(update.gps_id);
-    if (marker) marker.setLngLat([update.longitude, update.latitude]);
+    if (marker) {
+      marker.setLngLat([update.longitude, update.latitude]);
+      marker.setRotation(update.bearing);
+    }
   });
 
   onCleanup(() => {

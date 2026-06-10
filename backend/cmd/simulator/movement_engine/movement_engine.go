@@ -73,6 +73,35 @@ func bfsPath(adj map[int64][]int64, start, goal int64) []int64 {
 	return nil // no path was found
 }
 
+// Using haversine bearing formula to compute gps bearing from one gps coordinate to another
+// Formula:
+// Δlng = lng2 − lng1
+// x = sin(Δlng)·cos(lat2)
+// y = cos(lat1)·sin(lat2) − sin(lat1)·cos(lat2)·cos(Δlng)
+// bearing = atan2(x, y)           // radians, −π to +π
+// degrees = (bearing·180/π + 360) % 360   // normalize to 0–360
+// result: 0 = North, 90 = East, 180 = South, 270 = West.
+func computeBearing(from, to models.Node) float64 {
+	lat1 := from.Lat * math.Pi / 180
+	lng1 := from.Lng * math.Pi / 180
+	lat2 := to.Lat * math.Pi / 180
+	lng2 := to.Lng * math.Pi / 180
+
+	dLng := lng2 - lng1 // diff in longitue
+
+	x := math.Sin(dLng) * math.Cos(lat2) // compute east-west
+	y := math.Cos(lat1)*math.Sin(lat2) -
+		math.Sin(lat1)*math.Cos(lat2)*math.Cos(dLng) // compute north-south
+
+	bearing := math.Atan2(x, y)
+
+	// Convert radians to degrees
+	degrees := bearing * 180 / math.Pi
+	// Normalize to 0-360
+	degrees = math.Mod(degrees+360, 360)
+	return degrees
+}
+
 func StartSimulation(baseURL string, gps internalgps.GpsResponse, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
 	var current int64
 	if gps.LastCoordinate != nil {
@@ -105,6 +134,7 @@ func StartSimulation(baseURL string, gps internalgps.GpsResponse, nodes map[int6
 				}
 			}
 
+			prevNode := nodes[current]
 			current = path[0]
 			path = path[1:]
 
@@ -116,6 +146,7 @@ func StartSimulation(baseURL string, gps internalgps.GpsResponse, nodes map[int6
 				GpsID:     gps.ID,
 				Latitude:  node.Lat,
 				Longitude: node.Lng,
+				Bearing:   computeBearing(prevNode, node),
 			}, baseURL)
 		}
 	}
