@@ -109,8 +109,7 @@ func StartSimulation(baseURL string, gps internalgps.GpsResponse, nodes map[int6
 	} else {
 		current = pickRandomNode(adj)
 	}
-	randomSpeed := rand.Intn(9) + 1
-	t := time.NewTicker(time.Duration(randomSpeed) * time.Second)
+	t := time.NewTicker(2 * time.Second)
 	defer t.Stop()
 
 	var path []int64
