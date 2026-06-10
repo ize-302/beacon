@@ -5,8 +5,17 @@ import type { Gps, WsCoordinate } from "~/types";
 import policeCarUrl from "~/components/vehicles/police-car.svg?url";
 
 const vehicleIcons = [policeCarUrl];
+const ANIM_DURATION = 1900;
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+
+function makeMarkerEl(width: string, height: string, iconIndex: number) {
+  const el = document.createElement("img");
+  el.src = vehicleIcons[iconIndex];
+  el.style.width = width;
+  el.style.height = height;
+  return el;
+}
 
 export default function DeclarativeMap(props: {
   markers: Gps[];
@@ -15,7 +24,32 @@ export default function DeclarativeMap(props: {
   let mapContainer!: HTMLDivElement;
   let map: mapboxgl.Map;
   const markerInstances = new Map<number, mapboxgl.Marker>();
+  const markerAnimations = new Map<number, number>();
   const [mapReady, setMapReady] = createSignal(false);
+
+  function animateMarker(marker: mapboxgl.Marker, id: number, toLng: number, toLat: number, bearing: number) {
+    const prev = markerAnimations.get(id);
+    if (prev !== undefined) cancelAnimationFrame(prev);
+
+    const from = marker.getLngLat();
+    const startTime = performance.now();
+
+    function step(now: number) {
+      const t = Math.min((now - startTime) / ANIM_DURATION, 1);
+      marker.setLngLat([
+        from.lng + (toLng - from.lng) * t,
+        from.lat + (toLat - from.lat) * t,
+      ]);
+      if (t < 1) {
+        markerAnimations.set(id, requestAnimationFrame(step));
+      } else {
+        markerAnimations.delete(id);
+      }
+    }
+
+    markerAnimations.set(id, requestAnimationFrame(step));
+    marker.setRotation(bearing);
+  }
 
   onMount(() => {
     map = new mapboxgl.Map({
@@ -41,11 +75,7 @@ export default function DeclarativeMap(props: {
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
         `<strong>${gps.sn}</strong><br/>${gps.vehicle.plate_number}`,
       );
-      const el = document.createElement("img");
-      el.src = vehicleIcons[gps.id % vehicleIcons.length];
-      el.style.width = "20px";
-      el.style.height = "40px";
-      const marker = new mapboxgl.Marker({ element: el })
+      const marker = new mapboxgl.Marker({ element: makeMarkerEl("20px", "40px", gps.id % vehicleIcons.length) })
         .setLngLat([longitude, latitude])
         .setPopup(popup)
         .addTo(map);
@@ -66,22 +96,18 @@ export default function DeclarativeMap(props: {
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
         `<strong>${gps.sn}</strong><br/>${gps.vehicle.plate_number}`,
       );
-      const el = document.createElement("img");
-      el.src = vehicleIcons[gps.id % vehicleIcons.length];
-      el.style.width = "28px";
-      el.style.height = "56px";
-      marker = new mapboxgl.Marker({ element: el })
+      marker = new mapboxgl.Marker({ element: makeMarkerEl("28px", "56px", gps.id % vehicleIcons.length) })
         .setLngLat([update.longitude, update.latitude])
         .setPopup(popup)
         .addTo(map);
-      markerInstances.set(gps.id, marker);
+      markerInstances.set(update.gps_id, marker);
     }
 
-    marker.setLngLat([update.longitude, update.latitude]);
-    marker.setRotation(update.bearing);
+    animateMarker(marker, update.gps_id, update.longitude, update.latitude, update.bearing);
   });
 
   onCleanup(() => {
+    markerAnimations.forEach((id) => cancelAnimationFrame(id));
     markerInstances.forEach((m) => m.remove());
     if (map) map.remove();
   });
