@@ -15,6 +15,20 @@ import (
 	_ "github.com/lib/pq"
 )
 
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	var err error
 
@@ -93,7 +107,7 @@ func main() {
 	// auditlogs
 	// mux.HandleFunc("GET /logs", FetchLogs)
 
-	err = http.ListenAndServe(":8080", mux)
+	err = http.ListenAndServe(":8080", corsMiddleware(mux))
 	if err != nil {
 		fmt.Println("Server failed to listen on port 8080...")
 		return
