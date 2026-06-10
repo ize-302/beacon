@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	_ "embed"
 
@@ -56,16 +57,6 @@ func (h *Handler) CreateGps(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	// response := &GpsResponse{
-	// 	ID: gps.ID,
-	// 	SN: gps.SN,
-	// 	Vehicle: &vehicles.VehicleResponse{
-	// 		ID:          gps.Vehicle.ID,
-	// 		PlateNumber: gps.Vehicle.PlateNumber,
-	// 		CreatedAt:   gps.Vehicle.CreatedAt,
-	// 	},
-	// 	CreatedAt: gps.CreatedAt,
-	// }
 	json.NewEncoder(w).Encode(gps)
 }
 
@@ -83,9 +74,23 @@ func (h *Handler) FetchGpss(w http.ResponseWriter, r *http.Request) {
 		var gps GpsResponse
 		gps.Vehicle = &vehicles.VehicleResponse{}
 
-		err = rows.Scan(&gps.ID, &gps.SN, &gps.CreatedAt, &gps.Vehicle.ID, &gps.Vehicle.PlateNumber, &gps.Vehicle.CreatedAt)
+		var lat, lng sql.NullFloat64
+		var lastAt sql.NullTime
+
+		err = rows.Scan(&gps.ID, &gps.SN, &gps.CreatedAt, &gps.Vehicle.ID, &gps.Vehicle.PlateNumber, &gps.Vehicle.CreatedAt, &lat, &lng, &lastAt)
 		if err != nil {
 			panic(err)
+		}
+		if lat.Valid && lng.Valid {
+			updatedAt := time.Time{}
+			if lastAt.Valid {
+				updatedAt = lastAt.Time
+			}
+			gps.LastCoordinate = &Coordinate{
+				Latitude:  lat.Float64,
+				Longitude: lng.Float64,
+				UpdatedAt: updatedAt,
+			}
 		}
 		gpss = append(gpss, gps)
 	}
@@ -112,13 +117,27 @@ func (h *Handler) FetchGps(w http.ResponseWriter, r *http.Request) {
 
 	var gps GpsResponse
 	gps.Vehicle = &vehicles.VehicleResponse{}
+
+	var lat, lng sql.NullFloat64
+	var lastAt sql.NullTime
+
 	row := h.getGps(id)
-	switch err := row.Scan(&gps.ID, &gps.SN, &gps.CreatedAt, &gps.Vehicle.ID, &gps.Vehicle.PlateNumber, &gps.Vehicle.CreatedAt); err {
+	switch err := row.Scan(&gps.ID, &gps.SN, &gps.CreatedAt, &gps.Vehicle.ID, &gps.Vehicle.PlateNumber, &gps.Vehicle.CreatedAt, &lat, &lng, &lastAt); err {
 	case sql.ErrNoRows:
 		http.Error(w, "gps not found", http.StatusNotFound)
 	case nil:
+		if lat.Valid && lng.Valid {
+			updatedAt := time.Time{}
+			if lastAt.Valid {
+				updatedAt = lastAt.Time
+			}
+			gps.LastCoordinate = &Coordinate{
+				Latitude:  lat.Float64,
+				Longitude: lng.Float64,
+				UpdatedAt: updatedAt,
+			}
+		}
 		w.Header().Set("Content-Type", "application/json")
-
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(gps)
 	default:
