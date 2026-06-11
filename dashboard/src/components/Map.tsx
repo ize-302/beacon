@@ -69,6 +69,8 @@ export default function DeclarativeMap(props: {
       style: "mapbox://styles/mapbox/streets-v12",
       center: [3.37936, 6.5103],
       zoom: 8,
+      pitchWithRotate: false,
+      maxPitch: 0,
     });
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
     map.on("load", () => setMapReady(true));
@@ -89,6 +91,7 @@ export default function DeclarativeMap(props: {
       );
       const marker = new mapboxgl.Marker({
         element: makeMarkerEl("20px", "40px", (gps.id ?? 0) % vehicleIcons.length, () => props.onSelectGps(gps.id!)),
+        rotationAlignment: "map",
       })
         .setLngLat([longitude, latitude])
         .setPopup(popup)
@@ -111,7 +114,8 @@ export default function DeclarativeMap(props: {
         `<p style="font-weight:600;font-size:13px;margin:0 0 2px">${gps.sn}</p><p style="font-size:12px;color:#666;margin:0">${gps.vehicle?.plate_number ?? ""}</p>`,
       );
       marker = new mapboxgl.Marker({
-        element: makeMarkerEl("28px", "56px", (gps.id ?? 0) % vehicleIcons.length, () => props.onSelectGps(gps.id!)),
+        element: makeMarkerEl("20px", "40px", (gps.id ?? 0) % vehicleIcons.length, () => props.onSelectGps(gps.id!)),
+        rotationAlignment: "map",
       })
         .setLngLat([update.longitude, update.latitude])
         .setPopup(popup)

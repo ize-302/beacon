@@ -62,12 +62,29 @@ export interface GpspointsGpsPointResponse {
 }
 export interface VehiclesCreateVehicleRequest {
     'plate_number': string;
+    'vehicle_type': VehiclesVehicleType;
 }
+
+
 export interface VehiclesVehicleResponse {
     'created_at': string;
     'id': number;
     'plate_number': string;
+    'vehicle_type': VehiclesVehicleType;
 }
+
+
+
+export const VehiclesVehicleType = {
+    Car: 'car',
+    Bus: 'bus',
+    Truck: 'truck',
+    Van: 'van',
+} as const;
+
+export type VehiclesVehicleType = typeof VehiclesVehicleType[keyof typeof VehiclesVehicleType];
+
+
 
 /**
  * GpsApi - axios parameter creator
@@ -704,7 +721,7 @@ export const VehiclesApiAxiosParamCreator = function (configuration?: Configurat
         },
         /**
          * 
-         * @summary Create a vehicle
+         * @summary CreateVehicle ...
          * @param {VehiclesCreateVehicleRequest} body Vehicle payload
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -786,7 +803,7 @@ export const VehiclesApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary Create a vehicle
+         * @summary CreateVehicle ...
          * @param {VehiclesCreateVehicleRequest} body Vehicle payload
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -837,7 +854,7 @@ export const VehiclesApiFactory = function (configuration?: Configuration, baseP
         },
         /**
          * 
-         * @summary Create a vehicle
+         * @summary CreateVehicle ...
          * @param {VehiclesCreateVehicleRequest} body Vehicle payload
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -886,7 +903,7 @@ export class VehiclesApi extends BaseAPI {
 
     /**
      * 
-     * @summary Create a vehicle
+     * @summary CreateVehicle ...
      * @param {VehiclesCreateVehicleRequest} body Vehicle payload
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}

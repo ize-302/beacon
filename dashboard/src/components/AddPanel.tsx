@@ -20,15 +20,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import type { VehiclesVehicleResponse } from "~/client/api";
+import { type VehiclesVehicleResponse, VehiclesVehicleType, type VehiclesVehicleType as VehicleTypeEnum } from "~/client/api";
 import { useGetVehicles } from "~/queries/use-get-vehicles";
 import { useCreateVehicle } from "~/mutations/use-create-vehicle";
 import { useCreateGps } from "~/mutations/use-create-gps";
 
 export default function AddPanel() {
   const [plateNumber, setPlateNumber] = createSignal("");
+  const [vehicleType, setVehicleType] = createSignal<VehicleTypeEnum | null>(null);
   const [sn, setSn] = createSignal("");
-  const [selectedVehicle, setSelectedVehicle] = createSignal<VehiclesVehicleResponse | null>(null);
+  const [selectedVehicle, setSelectedVehicle] =
+    createSignal<VehiclesVehicleResponse | null>(null);
+
+  const vehicleTypeOptions = Object.values(VehiclesVehicleType);
 
   const vehicles = useGetVehicles();
   const createVehicle = useCreateVehicle();
@@ -36,9 +40,11 @@ export default function AddPanel() {
 
   const handleAddVehicle = async (e: SubmitEvent) => {
     e.preventDefault();
-    if (!plateNumber().trim()) return;
-    await createVehicle.mutateAsync({ plate_number: plateNumber().trim() });
+    const type = vehicleType();
+    if (!plateNumber().trim() || !type) return;
+    await createVehicle.mutateAsync({ plate_number: plateNumber().trim(), vehicle_type: type });
     setPlateNumber("");
+    setVehicleType(null);
   };
 
   const handleAddGps = async (e: SubmitEvent) => {
@@ -81,7 +87,34 @@ export default function AddPanel() {
                     onInput={(e) => setPlateNumber(e.currentTarget.value)}
                   />
                 </TextField>
-                <Button type="submit" class="w-full" disabled={createVehicle.isPending}>
+                <div class="flex flex-col gap-1">
+                  <label class="text-sm font-medium leading-none">
+                    Vehicle Type
+                  </label>
+                  <Select
+                    options={vehicleTypeOptions}
+                    value={vehicleType()}
+                    onChange={setVehicleType}
+                    placeholder="Select type"
+                    itemComponent={(props) => (
+                      <SelectItem item={props.item}>
+                        {props.item.rawValue}
+                      </SelectItem>
+                    )}
+                  >
+                    <SelectTrigger>
+                      <SelectValue<VehicleTypeEnum>>
+                        {(state) => state.selectedOption()}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent />
+                  </Select>
+                </div>
+                <Button
+                  type="submit"
+                  class="w-full"
+                  disabled={createVehicle.isPending}
+                >
                   {createVehicle.isPending ? "Adding..." : "Add Vehicle"}
                 </Button>
                 <Show when={createVehicle.isSuccess}>
@@ -106,7 +139,9 @@ export default function AddPanel() {
                   />
                 </TextField>
                 <div class="flex flex-col gap-1">
-                  <label class="text-sm font-medium leading-none">Vehicle</label>
+                  <label class="text-sm font-medium leading-none">
+                    Vehicle
+                  </label>
                   <Select
                     options={vehicles.data ?? []}
                     optionValue="id"
@@ -128,7 +163,11 @@ export default function AddPanel() {
                     <SelectContent />
                   </Select>
                 </div>
-                <Button type="submit" class="w-full" disabled={createGps.isPending}>
+                <Button
+                  type="submit"
+                  class="w-full"
+                  disabled={createGps.isPending}
+                >
                   {createGps.isPending ? "Adding..." : "Add GPS Device"}
                 </Button>
                 <Show when={createGps.isSuccess}>
