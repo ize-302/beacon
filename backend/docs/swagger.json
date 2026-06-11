@@ -310,6 +310,11 @@
     "definitions": {
         "gps.Coordinate": {
             "type": "object",
+            "required": [
+                "latitude",
+                "longitude",
+                "updated_at"
+            ],
             "properties": {
                 "latitude": {
                     "type": "number"
@@ -324,6 +329,10 @@
         },
         "gps.CreateGpsRequest": {
             "type": "object",
+            "required": [
+                "sn",
+                "vehicle_id"
+            ],
             "properties": {
                 "sn": {
                     "type": "string"
@@ -335,6 +344,13 @@
         },
         "gps.GpsResponse": {
             "type": "object",
+            "required": [
+                "created_at",
+                "id",
+                "last_coordinate",
+                "sn",
+                "vehicle"
+            ],
             "properties": {
                 "created_at": {
                     "type": "string"
@@ -355,6 +371,13 @@
         },
         "gpspoints.CreateGpsPoint": {
             "type": "object",
+            "required": [
+                "bearing",
+                "gps_id",
+                "latitude",
+                "longitude",
+                "timestamp"
+            ],
             "properties": {
                 "bearing": {
                     "type": "number"
@@ -375,6 +398,15 @@
         },
         "gpspoints.GpsPointResponse": {
             "type": "object",
+            "required": [
+                "bearing",
+                "created_at",
+                "gps_id",
+                "id",
+                "latitude",
+                "longitude",
+                "timestamp"
+            ],
             "properties": {
                 "bearing": {
                     "type": "number"
@@ -401,6 +433,9 @@
         },
         "vehicles.CreateVehicleRequest": {
             "type": "object",
+            "required": [
+                "plate_number"
+            ],
             "properties": {
                 "plate_number": {
                     "type": "string"
@@ -409,6 +444,11 @@
         },
         "vehicles.VehicleResponse": {
             "type": "object",
+            "required": [
+                "created_at",
+                "id",
+                "plate_number"
+            ],
             "properties": {
                 "created_at": {
                     "type": "string"

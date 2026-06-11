@@ -316,6 +316,11 @@ const docTemplate = `{
     "definitions": {
         "gps.Coordinate": {
             "type": "object",
+            "required": [
+                "latitude",
+                "longitude",
+                "updated_at"
+            ],
             "properties": {
                 "latitude": {
                     "type": "number"
@@ -330,6 +335,10 @@ const docTemplate = `{
         },
         "gps.CreateGpsRequest": {
             "type": "object",
+            "required": [
+                "sn",
+                "vehicle_id"
+            ],
             "properties": {
                 "sn": {
                     "type": "string"
@@ -341,6 +350,13 @@ const docTemplate = `{
         },
         "gps.GpsResponse": {
             "type": "object",
+            "required": [
+                "created_at",
+                "id",
+                "last_coordinate",
+                "sn",
+                "vehicle"
+            ],
             "properties": {
                 "created_at": {
                     "type": "string"
@@ -361,6 +377,13 @@ const docTemplate = `{
         },
         "gpspoints.CreateGpsPoint": {
             "type": "object",
+            "required": [
+                "bearing",
+                "gps_id",
+                "latitude",
+                "longitude",
+                "timestamp"
+            ],
             "properties": {
                 "bearing": {
                     "type": "number"
@@ -381,6 +404,15 @@ const docTemplate = `{
         },
         "gpspoints.GpsPointResponse": {
             "type": "object",
+            "required": [
+                "bearing",
+                "created_at",
+                "gps_id",
+                "id",
+                "latitude",
+                "longitude",
+                "timestamp"
+            ],
             "properties": {
                 "bearing": {
                     "type": "number"
@@ -407,6 +439,9 @@ const docTemplate = `{
         },
         "vehicles.CreateVehicleRequest": {
             "type": "object",
+            "required": [
+                "plate_number"
+            ],
             "properties": {
                 "plate_number": {
                     "type": "string"
@@ -415,6 +450,11 @@ const docTemplate = `{
         },
         "vehicles.VehicleResponse": {
             "type": "object",
+            "required": [
+                "created_at",
+                "id",
+                "plate_number"
+            ],
             "properties": {
                 "created_at": {
                     "type": "string"

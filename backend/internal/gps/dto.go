@@ -8,20 +8,20 @@ import (
 )
 
 type CreateGpsRequest struct {
-	SN        string `json:"sn"`
-	VehicleID int    `json:"vehicle_id"`
+	SN        string `json:"sn" validate:"required"`
+	VehicleID int    `json:"vehicle_id" validate:"required"`
 }
 
 type Coordinate struct {
-	Latitude  float64   `json:"latitude"`
-	Longitude float64   `json:"longitude"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Latitude  float64   `json:"latitude" validate:"required"`
+	Longitude float64   `json:"longitude" validate:"required"`
+	UpdatedAt time.Time `json:"updated_at" validate:"required"`
 }
 
 type GpsResponse struct {
-	ID             int                       `json:"id"`
-	SN             string                    `json:"sn"`
-	Vehicle        *vehicles.VehicleResponse `json:"vehicle"`
-	LastCoordinate *Coordinate               `json:"last_coordinate"`
-	CreatedAt      time.Time                 `json:"created_at"`
+	ID             int                       `json:"id" validate:"required"`
+	SN             string                    `json:"sn" validate:"required"`
+	Vehicle        *vehicles.VehicleResponse `json:"vehicle" validate:"required"`
+	LastCoordinate *Coordinate               `json:"last_coordinate" validate:"required"`
+	CreatedAt      time.Time                 `json:"created_at" validate:"required"`
 }

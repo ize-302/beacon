@@ -8,6 +8,10 @@ definitions:
         type: number
       updated_at:
         type: string
+    required:
+    - latitude
+    - longitude
+    - updated_at
     type: object
   gps.CreateGpsRequest:
     properties:
@@ -15,6 +19,9 @@ definitions:
         type: string
       vehicle_id:
         type: integer
+    required:
+    - sn
+    - vehicle_id
     type: object
   gps.GpsResponse:
     properties:
@@ -28,6 +35,12 @@ definitions:
         type: string
       vehicle:
         $ref: '#/definitions/vehicles.VehicleResponse'
+    required:
+    - created_at
+    - id
+    - last_coordinate
+    - sn
+    - vehicle
     type: object
   gpspoints.CreateGpsPoint:
     properties:
@@ -41,6 +54,12 @@ definitions:
         type: number
       timestamp:
         type: integer
+    required:
+    - bearing
+    - gps_id
+    - latitude
+    - longitude
+    - timestamp
     type: object
   gpspoints.GpsPointResponse:
     properties:
@@ -58,11 +77,21 @@ definitions:
         type: number
       timestamp:
         type: integer
+    required:
+    - bearing
+    - created_at
+    - gps_id
+    - id
+    - latitude
+    - longitude
+    - timestamp
     type: object
   vehicles.CreateVehicleRequest:
     properties:
       plate_number:
         type: string
+    required:
+    - plate_number
     type: object
   vehicles.VehicleResponse:
     properties:
@@ -72,6 +101,10 @@ definitions:
         type: integer
       plate_number:
         type: string
+    required:
+    - created_at
+    - id
+    - plate_number
     type: object
 host: localhost:8080
 info:
