@@ -100,9 +100,8 @@
     @apply border-border;
   }
   body {
-    font-family: "Geist", sans-serif;
-    font-optical-sizing: auto;
-    font-weight: 400;
+    font-family: "Space Mono", monospace;
+    font-weight: 500;
     font-style: normal;
 
     @apply bg-background text-foreground;
