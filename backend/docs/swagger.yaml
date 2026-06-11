@@ -23,6 +23,21 @@ definitions:
     - sn
     - vehicle_id
     type: object
+  gps.GpsHistoryResponse:
+    properties:
+      coordinates:
+        items:
+          $ref: '#/definitions/gps.Coordinate'
+        type: array
+      gps_id:
+        type: integer
+      gps_sn:
+        type: string
+    required:
+    - coordinates
+    - gps_id
+    - gps_sn
+    type: object
   gps.GpsResponse:
     properties:
       created_at:
@@ -226,6 +241,28 @@ paths:
           schema:
             type: string
       summary: Get a GPS device
+      tags:
+      - gps
+  /gps/{id}/history:
+    get:
+      parameters:
+      - description: GPS ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gps.GpsHistoryResponse'
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Get a GpsHistory ...
       tags:
       - gps
   /vehicles:

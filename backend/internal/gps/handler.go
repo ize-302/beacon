@@ -25,6 +25,9 @@ var selectGps string
 //go:embed queries/delete_gps.sql
 var deleteGps string
 
+//go:embed queries/select_gps_history.sql
+var getGpsHistory string
+
 type Handler struct {
 	*database.Handler
 }
@@ -188,4 +191,58 @@ func (h *Handler) DeleteGps(w http.ResponseWriter, r *http.Request) {
 	default:
 		panic(err)
 	}
+}
+
+// @Summary      Get a GpsHistory ...
+// @Tags         gps
+// @Produce      json
+// @Param        id path int true "GPS ID"
+// @Success      200 {object} GpsHistoryResponse
+// @Failure      404 {string} string
+// @Router       /gps/{id}/history [get]
+func (h *Handler) GpsHistory(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	rows, err := h.DB.Query(getGpsHistory, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var gpsHistory GpsHistoryResponse
+	coordinates := []Coordinate{}
+	found := false
+
+	for rows.Next() {
+		var lat, lng sql.NullFloat64
+		if err := rows.Scan(&gpsHistory.GpsID, &gpsHistory.GpsSN, &lat, &lng); err != nil {
+			panic(err)
+		}
+		found = true
+		if lat.Valid && lng.Valid {
+			coordinates = append(coordinates, Coordinate{
+				Latitude:  lat.Float64,
+				Longitude: lng.Float64,
+			})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if !found {
+		http.Error(w, "gps not found", http.StatusNotFound)
+		return
+	}
+
+	gpsHistory.Coordinates = &coordinates
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(gpsHistory)
 }

@@ -105,6 +105,8 @@ func main() {
 
 	mux.HandleFunc("DELETE /gps/{id}", gpsHandler.DeleteGps)
 
+	mux.HandleFunc("GET /gps/{id}/history", gpsHandler.GpsHistory)
+
 	// vehicles
 	mux.HandleFunc("POST /vehicles", vehiclesHandler.CreateVehicle)
 

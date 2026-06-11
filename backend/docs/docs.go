@@ -193,6 +193,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/gps/{id}/history": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "gps"
+                ],
+                "summary": "Get a GpsHistory ...",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "GPS ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/gps.GpsHistoryResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/vehicles": {
             "get": {
                 "produces": [
@@ -345,6 +379,28 @@ const docTemplate = `{
                 },
                 "vehicle_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "gps.GpsHistoryResponse": {
+            "type": "object",
+            "required": [
+                "coordinates",
+                "gps_id",
+                "gps_sn"
+            ],
+            "properties": {
+                "coordinates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/gps.Coordinate"
+                    }
+                },
+                "gps_id": {
+                    "type": "integer"
+                },
+                "gps_sn": {
+                    "type": "string"
                 }
             }
         },

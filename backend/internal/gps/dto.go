@@ -25,3 +25,9 @@ type GpsResponse struct {
 	LastCoordinate *Coordinate               `json:"last_coordinate" validate:"required"`
 	CreatedAt      time.Time                 `json:"created_at" validate:"required"`
 }
+
+type GpsHistoryResponse struct {
+	GpsID       int           `json:"gps_id" validate:"required"`
+	GpsSN       string        `json:"gps_sn" validate:"required"`
+	Coordinates *[]Coordinate `json:"coordinates" validate:"required"`
+}

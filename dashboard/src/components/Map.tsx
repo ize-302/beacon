@@ -7,20 +7,26 @@ import policeCarUrl from "~/components/vehicles/police-car.svg?url";
 
 const vehicleIcons = [policeCarUrl];
 const DEFAULT_ANIM_DURATION = 4000;
+const HISTORY_SOURCE = "gps-history";
+const HISTORY_LAYER = "gps-history-line";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
-function makeMarkerEl(width: string, height: string, iconIndex: number) {
+function makeMarkerEl(width: string, height: string, iconIndex: number, onClick?: () => void) {
   const el = document.createElement("img");
   el.src = vehicleIcons[iconIndex];
   el.style.width = width;
   el.style.height = height;
+  el.style.cursor = "pointer";
+  if (onClick) el.addEventListener("click", onClick);
   return el;
 }
 
 export default function DeclarativeMap(props: {
   markers: GpsGpsResponse[];
   liveUpdate: WsCoordinate | null;
+  onSelectGps: (id: number) => void;
+  historyCoordinates: [number, number][] | null;
 }) {
   let mapContainer!: HTMLDivElement;
   let map: mapboxgl.Map;
@@ -81,7 +87,9 @@ export default function DeclarativeMap(props: {
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
         `<strong>${gps.sn}</strong><br/>${gps.vehicle?.plate_number}`,
       );
-      const marker = new mapboxgl.Marker({ element: makeMarkerEl("20px", "40px", (gps.id ?? 0) % vehicleIcons.length) })
+      const marker = new mapboxgl.Marker({
+        element: makeMarkerEl("20px", "40px", (gps.id ?? 0) % vehicleIcons.length, () => props.onSelectGps(gps.id!)),
+      })
         .setLngLat([longitude, latitude])
         .setPopup(popup)
         .addTo(map);
@@ -102,7 +110,9 @@ export default function DeclarativeMap(props: {
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
         `<strong>${gps.sn}</strong><br/>${gps.vehicle?.plate_number}`,
       );
-      marker = new mapboxgl.Marker({ element: makeMarkerEl("28px", "56px", (gps.id ?? 0) % vehicleIcons.length) })
+      marker = new mapboxgl.Marker({
+        element: makeMarkerEl("28px", "56px", (gps.id ?? 0) % vehicleIcons.length, () => props.onSelectGps(gps.id!)),
+      })
         .setLngLat([update.longitude, update.latitude])
         .setPopup(popup)
         .addTo(map);
@@ -110,6 +120,32 @@ export default function DeclarativeMap(props: {
     }
 
     animateMarker(marker, update.gps_id, update.longitude, update.latitude, update.bearing, update.timestamp);
+  });
+
+  // Draw route when history coordinates change
+  createEffect(() => {
+    if (!mapReady()) return;
+    const coords = props.historyCoordinates ?? [];
+
+    if (!map.getSource(HISTORY_SOURCE)) {
+      map.addSource(HISTORY_SOURCE, {
+        type: "geojson",
+        data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [] } },
+      });
+      map.addLayer({
+        id: HISTORY_LAYER,
+        type: "line",
+        source: HISTORY_SOURCE,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: { "line-color": "#3b82f6", "line-width": 3, "line-opacity": 0.8 },
+      });
+    }
+
+    (map.getSource(HISTORY_SOURCE) as mapboxgl.GeoJSONSource).setData({
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: coords },
+    });
   });
 
   onCleanup(() => {
