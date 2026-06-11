@@ -24,44 +24,44 @@ import type { RequestArgs } from './base';
 import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerMap } from './base';
 
 export interface GpsCoordinate {
-    'latitude'?: number;
-    'longitude'?: number;
-    'updated_at'?: string;
+    'latitude': number;
+    'longitude': number;
+    'updated_at': string;
 }
 export interface GpsCreateGpsRequest {
-    'sn'?: string;
-    'vehicle_id'?: number;
+    'sn': string;
+    'vehicle_id': number;
 }
 export interface GpsGpsResponse {
-    'created_at'?: string;
-    'id'?: number;
-    'last_coordinate'?: GpsCoordinate;
-    'sn'?: string;
-    'vehicle'?: VehiclesVehicleResponse;
+    'created_at': string;
+    'id': number;
+    'last_coordinate': GpsCoordinate;
+    'sn': string;
+    'vehicle': VehiclesVehicleResponse;
 }
 export interface GpspointsCreateGpsPoint {
-    'bearing'?: number;
-    'gps_id'?: number;
-    'latitude'?: number;
-    'longitude'?: number;
-    'timestamp'?: number;
+    'bearing': number;
+    'gps_id': number;
+    'latitude': number;
+    'longitude': number;
+    'timestamp': number;
 }
 export interface GpspointsGpsPointResponse {
-    'bearing'?: number;
-    'created_at'?: string;
-    'gps_id'?: number;
-    'id'?: number;
-    'latitude'?: number;
-    'longitude'?: number;
-    'timestamp'?: number;
+    'bearing': number;
+    'created_at': string;
+    'gps_id': number;
+    'id': number;
+    'latitude': number;
+    'longitude': number;
+    'timestamp': number;
 }
 export interface VehiclesCreateVehicleRequest {
-    'plate_number'?: string;
+    'plate_number': string;
 }
 export interface VehiclesVehicleResponse {
-    'created_at'?: string;
-    'id'?: number;
-    'plate_number'?: string;
+    'created_at': string;
+    'id': number;
+    'plate_number': string;
 }
 
 /**
