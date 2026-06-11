@@ -143,3 +143,24 @@
 ::-webkit-scrollbar-corner {
   display: none;
 }
+
+/* Mapbox popup overrides */
+.mapboxgl-popup-content {
+  border-radius: 0 !important;
+  padding: 10px 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  font-family: inherit;
+  min-width: 100px;
+}
+
+.mapboxgl-popup-close-button {
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 6px;
+  color: #888;
+}
+
+.mapboxgl-popup-close-button:hover {
+  color: #111;
+  background: transparent;
+}

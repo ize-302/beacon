@@ -85,7 +85,7 @@ export default function DeclarativeMap(props: {
       if (!gps.last_coordinate) return;
       const { longitude, latitude } = gps.last_coordinate as Required<typeof gps.last_coordinate>;
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-        `<strong>${gps.sn}</strong><br/>${gps.vehicle?.plate_number}`,
+        `<p style="font-weight:600;font-size:13px;margin:0 0 2px">${gps.sn}</p><p style="font-size:12px;color:#666;margin:0">${gps.vehicle?.plate_number ?? ""}</p>`,
       );
       const marker = new mapboxgl.Marker({
         element: makeMarkerEl("20px", "40px", (gps.id ?? 0) % vehicleIcons.length, () => props.onSelectGps(gps.id!)),
@@ -108,7 +108,7 @@ export default function DeclarativeMap(props: {
       const gps = props.markers?.find((g) => g.id === update.gps_id);
       if (!gps) return;
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-        `<strong>${gps.sn}</strong><br/>${gps.vehicle?.plate_number}`,
+        `<p style="font-weight:600;font-size:13px;margin:0 0 2px">${gps.sn}</p><p style="font-size:12px;color:#666;margin:0">${gps.vehicle?.plate_number ?? ""}</p>`,
       );
       marker = new mapboxgl.Marker({
         element: makeMarkerEl("28px", "56px", (gps.id ?? 0) % vehicleIcons.length, () => props.onSelectGps(gps.id!)),
