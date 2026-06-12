@@ -12,7 +12,7 @@ import (
 	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
 )
 
-func APISendGpsPosition(payload gpspoints.CreateGpsPoint, baseURL string) {
+func SendGpsPosition(payload gpspoints.CreateGpsPoint, baseURL string) {
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		panic(err)

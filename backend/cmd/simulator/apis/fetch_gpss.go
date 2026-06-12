@@ -10,7 +10,7 @@ import (
 	internalgps "github.com/ize-302/beacon/backend/internal/gps"
 )
 
-func APIFetchGpss(baseURL string) ([]internalgps.GpsResponse, error) {
+func FetchGpsDevices(baseURL string) ([]internalgps.GpsResponse, error) {
 	resp, err := http.Get(baseURL + "/gps")
 	if err != nil {
 		panic(err)

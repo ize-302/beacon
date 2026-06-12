@@ -26,5 +26,5 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	movementengine.StartSimulation(baseURL, nodes, adj, ctx)
+	movementengine.Run(baseURL, nodes, adj, ctx)
 }

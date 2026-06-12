@@ -104,7 +104,7 @@ func pickRandomNode(adj map[int64][]int64) int64 {
 	return keys[rand.Intn(len(keys))]
 }
 
-func StartVehicleMovement(baseURL string, gps internalgps.GpsResponse, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
+func DriveVehicle(baseURL string, gps internalgps.GpsResponse, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
 	var current int64
 	if gps.LastCoordinate != nil {
 		current = closestNode(nodes, gps.LastCoordinate.Latitude, gps.LastCoordinate.Longitude)
@@ -144,7 +144,7 @@ func StartVehicleMovement(baseURL string, gps internalgps.GpsResponse, nodes map
 			if !ok {
 				continue
 			}
-			apis.APISendGpsPosition(gpspoints.CreateGpsPoint{
+			apis.SendGpsPosition(gpspoints.CreateGpsPoint{
 				GpsID:     gps.ID,
 				Latitude:  node.Lat,
 				Longitude: node.Lng,
@@ -155,7 +155,7 @@ func StartVehicleMovement(baseURL string, gps internalgps.GpsResponse, nodes map
 	}
 }
 
-func StartSimulation(baseURL string, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
+func Run(baseURL string, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
 	var mu sync.Mutex
 	running := make(map[int]struct{})
 
@@ -170,13 +170,13 @@ func StartSimulation(baseURL string, nodes map[int64]models.Node, adj map[int64]
 		mu.Unlock()
 
 		go func() {
-			StartVehicleMovement(baseURL, gps, nodes, adj, ctx)
+			DriveVehicle(baseURL, gps, nodes, adj, ctx)
 		}()
 		log.Printf("simulator: started gps %d (%s)", gps.ID, gps.SN)
 	}
 
 	// initial gpss load
-	gpss, err := apis.APIFetchGpss(baseURL)
+	gpss, err := apis.FetchGpsDevices(baseURL)
 	if err != nil {
 		log.Fatalf("failed to fetch GPS devices: %v", err)
 	}
@@ -192,7 +192,7 @@ func StartSimulation(baseURL string, nodes map[int64]models.Node, adj map[int64]
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			gpss, err := apis.APIFetchGpss(baseURL)
+			gpss, err := apis.FetchGpsDevices(baseURL)
 			if err != nil {
 				log.Printf("simulator: poll error: %v", err)
 				continue
