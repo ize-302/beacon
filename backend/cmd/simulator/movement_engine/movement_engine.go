@@ -3,8 +3,10 @@ package movementengine
 
 import (
 	"context"
+	"log"
 	"math"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/ize-302/beacon/backend/cmd/simulator/apis"
@@ -13,29 +15,6 @@ import (
 
 	internalgps "github.com/ize-302/beacon/backend/internal/gps"
 )
-
-func pickRandomNode(adj map[int64][]int64) int64 {
-	keys := make([]int64, 0, len(adj))
-	for k := range adj {
-		keys = append(keys, k)
-	}
-	return keys[rand.Intn(len(keys))]
-}
-
-func closestNode(nodes map[int64]models.Node, lat, lng float64) int64 {
-	var closest int64
-	minDist := math.MaxFloat64
-	for id, n := range nodes {
-		latDiff := n.Lat - lat
-		lngDiff := n.Lng - lng
-		d := (latDiff * latDiff) + (lngDiff * lngDiff)
-		if d < minDist {
-			minDist = d
-			closest = id
-		}
-	}
-	return closest
-}
 
 // Breadth-First Search: explores the graph layer by layer by finding the
 // shortedt possible path to a destination from a given current position. It also makes it
@@ -102,7 +81,30 @@ func computeBearing(from, to models.Node) float64 {
 	return degrees
 }
 
-func StartSimulation(baseURL string, gps internalgps.GpsResponse, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
+func closestNode(nodes map[int64]models.Node, lat, lng float64) int64 {
+	var closest int64
+	minDist := math.MaxFloat64
+	for id, n := range nodes {
+		latDiff := n.Lat - lat
+		lngDiff := n.Lng - lng
+		d := (latDiff * latDiff) + (lngDiff * lngDiff)
+		if d < minDist {
+			minDist = d
+			closest = id
+		}
+	}
+	return closest
+}
+
+func pickRandomNode(adj map[int64][]int64) int64 {
+	keys := make([]int64, 0, len(adj))
+	for k := range adj {
+		keys = append(keys, k)
+	}
+	return keys[rand.Intn(len(keys))]
+}
+
+func StartVehicleMovement(baseURL string, gps internalgps.GpsResponse, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
 	var current int64
 	if gps.LastCoordinate != nil {
 		current = closestNode(nodes, gps.LastCoordinate.Latitude, gps.LastCoordinate.Longitude)
@@ -149,6 +151,55 @@ func StartSimulation(baseURL string, gps internalgps.GpsResponse, nodes map[int6
 				Bearing:   computeBearing(prevNode, node),
 				Timestamp: time.Now().UnixMilli(),
 			}, baseURL)
+		}
+	}
+}
+
+func StartSimulation(baseURL string, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
+	var mu sync.Mutex
+	running := make(map[int]struct{})
+
+	// first checks the map before spawning so existing vehicles are untouched
+	startGps := func(gps internalgps.GpsResponse) {
+		mu.Lock()
+		if _, ok := running[gps.ID]; ok {
+			mu.Unlock()
+			return
+		}
+		running[gps.ID] = struct{}{}
+		mu.Unlock()
+
+		go func() {
+			StartVehicleMovement(baseURL, gps, nodes, adj, ctx)
+		}()
+		log.Printf("simulator: started gps %d (%s)", gps.ID, gps.SN)
+	}
+
+	// initial gpss load
+	gpss, err := apis.APIFetchGpss(baseURL)
+	if err != nil {
+		log.Fatalf("failed to fetch GPS devices: %v", err)
+	}
+	for _, gps := range gpss {
+		startGps(gps)
+	}
+
+	// periodically pick up newly added GPS devices. polls every 10s
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			gpss, err := apis.APIFetchGpss(baseURL)
+			if err != nil {
+				log.Printf("simulator: poll error: %v", err)
+				continue
+			}
+			for _, gps := range gpss {
+				startGps(gps)
+			}
 		}
 	}
 }
