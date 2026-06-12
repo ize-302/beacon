@@ -1,1 +1,1 @@
-SELECT id, plate_number, created_at FROM vehicles WHERE id = $1;
+SELECT id, plate_number, vehicle_type, created_at FROM vehicles WHERE id = $1;

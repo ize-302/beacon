@@ -258,7 +258,7 @@ const docTemplate = `{
                 "tags": [
                     "vehicles"
                 ],
-                "summary": "Create a vehicle",
+                "summary": "CreateVehicle ...",
                 "parameters": [
                     {
                         "description": "Vehicle payload",
@@ -496,11 +496,15 @@ const docTemplate = `{
         "vehicles.CreateVehicleRequest": {
             "type": "object",
             "required": [
-                "plate_number"
+                "plate_number",
+                "vehicle_type"
             ],
             "properties": {
                 "plate_number": {
                     "type": "string"
+                },
+                "vehicle_type": {
+                    "$ref": "#/definitions/vehicles.VehicleType"
                 }
             }
         },
@@ -509,7 +513,8 @@ const docTemplate = `{
             "required": [
                 "created_at",
                 "id",
-                "plate_number"
+                "plate_number",
+                "vehicle_type"
             ],
             "properties": {
                 "created_at": {
@@ -520,8 +525,26 @@ const docTemplate = `{
                 },
                 "plate_number": {
                     "type": "string"
+                },
+                "vehicle_type": {
+                    "$ref": "#/definitions/vehicles.VehicleType"
                 }
             }
+        },
+        "vehicles.VehicleType": {
+            "type": "string",
+            "enum": [
+                "car",
+                "bus",
+                "truck",
+                "van"
+            ],
+            "x-enum-varnames": [
+                "Car",
+                "Bus",
+                "Truck",
+                "Van"
+            ]
         }
     }
 }`

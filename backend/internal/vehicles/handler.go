@@ -27,7 +27,7 @@ type Handler struct {
 	*database.Handler
 }
 
-// @Summary      Create a vehicle
+// @Summary      CreateVehicle ...
 // @Tags         vehicles
 // @Accept       json
 // @Produce      json
@@ -49,7 +49,12 @@ func (h *Handler) CreateVehicle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.DB.QueryRow(insertVehicle, createVehicleRequest.PlateNumber).Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.CreatedAt)
+	if createVehicleRequest.VehicleType == "" {
+		http.Error(w, "vehicle type is required", http.StatusBadRequest)
+		return
+	}
+
+	err = h.DB.QueryRow(insertVehicle, createVehicleRequest.PlateNumber, createVehicleRequest.VehicleType).Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.VehicleType, &vehicle.CreatedAt)
 	if err != nil {
 		panic(err)
 	}
@@ -60,6 +65,7 @@ func (h *Handler) CreateVehicle(w http.ResponseWriter, r *http.Request) {
 	response := &VehicleResponse{
 		ID:          vehicle.ID,
 		PlateNumber: vehicle.PlateNumber,
+		VehicleType: vehicle.VehicleType,
 		CreatedAt:   vehicle.CreatedAt,
 	}
 	json.NewEncoder(w).Encode(response)
@@ -82,7 +88,7 @@ func (h *Handler) FetchVehicles(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	for rows.Next() {
 		var vehicle VehicleResponse
-		err = rows.Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.CreatedAt)
+		err = rows.Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.VehicleType, &vehicle.CreatedAt)
 		if err != nil {
 			panic(err)
 		}
@@ -118,7 +124,7 @@ func (h *Handler) FetchVehicle(w http.ResponseWriter, r *http.Request) {
 
 	var vehicle Vehicle
 	row := h.getVehicleByID(id)
-	switch err := row.Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.CreatedAt); err {
+	switch err := row.Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.VehicleType, &vehicle.CreatedAt); err {
 	case sql.ErrNoRows:
 		http.Error(w, "vehicle not found", http.StatusNotFound)
 	case nil:
@@ -128,6 +134,7 @@ func (h *Handler) FetchVehicle(w http.ResponseWriter, r *http.Request) {
 		response := &VehicleResponse{
 			ID:          vehicle.ID,
 			PlateNumber: vehicle.PlateNumber,
+			VehicleType: vehicle.VehicleType,
 			CreatedAt:   vehicle.CreatedAt,
 		}
 		json.NewEncoder(w).Encode(response)

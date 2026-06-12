@@ -105,8 +105,11 @@ definitions:
     properties:
       plate_number:
         type: string
+      vehicle_type:
+        $ref: '#/definitions/vehicles.VehicleType'
     required:
     - plate_number
+    - vehicle_type
     type: object
   vehicles.VehicleResponse:
     properties:
@@ -116,11 +119,26 @@ definitions:
         type: integer
       plate_number:
         type: string
+      vehicle_type:
+        $ref: '#/definitions/vehicles.VehicleType'
     required:
     - created_at
     - id
     - plate_number
+    - vehicle_type
     type: object
+  vehicles.VehicleType:
+    enum:
+    - car
+    - bus
+    - truck
+    - van
+    type: string
+    x-enum-varnames:
+    - Car
+    - Bus
+    - Truck
+    - Van
 host: localhost:8080
 info:
   contact: {}
@@ -300,7 +318,7 @@ paths:
           description: Bad Request
           schema:
             type: string
-      summary: Create a vehicle
+      summary: CreateVehicle ...
       tags:
       - vehicles
   /vehicles/{id}:
