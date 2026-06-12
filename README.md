@@ -17,22 +17,22 @@ flowchart LR
     Sim -->|"POST /gps-points"| API
     API --> DB
     API --> WS
-    WS -->|"lat, lng, bearing"| Dash
+    WS -->|"lat, lng, bearing, timestamp"| Dash
     Dash -->|"GET /gps (initial load)"| API
 ```
 
 1. **Backend** seeds the database and exposes a REST API for vehicles, GPS devices, and GPS points.
-2. **Simulator** fetches all registered GPS devices, builds a road graph from Lagos OSM data, and moves each vehicle independently along BFS-computed paths. Each tick sends the vehicle's new position and bearing to the API.
+2. **Simulator** fetches all registered GPS devices, builds a road graph from Lagos OSM data, and moves each vehicle independently along BFS-computed paths. Sends the vehicle's new position, bearing, and timestamp to the API. New GPS devices are picked up automatically every 10 seconds.
 3. **API** saves each GPS point and broadcasts it over WebSocket.
-4. **Dashboard** renders vehicle markers on a Mapbox map. Markers appear on first REST load (if a last coordinate exists) or on first WebSocket ping. Each marker rotates to face its direction of travel.
+4. **Dashboard** renders vehicle markers on a Mapbox map. Markers appear on first REST load (if a last coordinate exists) or on first WebSocket ping. Each marker rotates to face its direction of travel and holds the correct bearing as the map is rotated. Clicking a marker loads its GPS history and draws the route on the map; the route grows in real time as the vehicle moves.
 
 ## Stack
 
-| Layer     | Tech                                                  |
-| --------- | ----------------------------------------------------- |
-| Backend   | Go, `net/http`, `gorilla/websocket`, PostgreSQL       |
-| Simulator | Go, BFS pathfinding, `paulmach/osm` (OSM PBF parsing) |
-| Dashboard | SolidJS, Vite, Mapbox GL JS, TanStack Query           |
+| Layer     | Tech                                                     |
+| --------- | -------------------------------------------------------- |
+| Backend   | Go, `net/http`, `gorilla/websocket`, PostgreSQL, Swagger |
+| Simulator | Go, BFS pathfinding, `paulmach/osm` (OSM PBF parsing)    |
+| Dashboard | SolidJS, Vite, Mapbox GL JS, TanStack Query, Axios       |
 
 ## Getting started
 
@@ -88,15 +88,6 @@ npm run dev
 
 ## API
 
-| Method   | Path            | Description                                                    |
-| -------- | --------------- | -------------------------------------------------------------- |
-| `GET`    | `/health`       | Check API health                                               |
-| `GET`    | `/vehicles`     | List all vehicles                                              |
-| `POST`   | `/vehicles`     | Create a vehicle                                               |
-| `DELETE` | `/vehicles/:id` | Delete a vehicle                                               |
-| `GET`    | `/gps`          | List all GPS devices (with last coordinate)                    |
-| `POST`   | `/gps`          | Register a GPS device                                          |
-| `DELETE` | `/gps/:id`      | Delete a GPS device                                            |
-| `POST`   | `/gps-points`   | Record a GPS point (triggers WS broadcast)                     |
-| `GET`    | `/gps-points`   | List all GPS points                                            |
-| `GET`    | `/ws`           | WebSocket — streams `{ gps_id, latitude, longitude, bearing }` |
+Full interactive docs available at [`http://localhost:8080/swagger/`](http://localhost:8080/swagger/) when the backend is running.
+
+WebSocket endpoint `/ws` streams `{ gps_id, latitude, longitude, bearing, timestamp }` for every position update.
