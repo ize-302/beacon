@@ -22,7 +22,7 @@ flowchart LR
 ```
 
 1. **Backend** seeds the database and exposes a REST API for vehicles, GPS devices, and GPS points.
-2. **Simulator** fetches all registered GPS devices, builds a road graph from Lagos OSM data, and moves each vehicle independently along BFS-computed paths. Sends the vehicle's new position, bearing, and timestamp to the API. New GPS devices are picked up automatically every 10 seconds.
+2. **Simulator** fetches all registered GPS devices, builds a road graph from Lagos OSM data, and moves each vehicle independently along BFS-computed paths. Sends the vehicle's new position, bearing, and timestamp to the API. New GPS devices are detected and picked up automatically using Server-Sent Events.
 3. **API** saves each GPS point and broadcasts it over WebSocket.
 4. **Dashboard** renders vehicle markers on a Mapbox map. Markers appear on first REST load (if a last coordinate exists) or on first WebSocket ping. Each marker rotates to face its direction of travel and holds the correct bearing as the map is rotated. Clicking a marker loads its GPS history and draws the route on the map; the route grows in real time as the vehicle moves.
 

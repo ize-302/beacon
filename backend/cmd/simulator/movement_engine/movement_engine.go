@@ -184,22 +184,17 @@ func Run(baseURL string, nodes map[int64]models.Node, adj map[int64][]int64, ctx
 		startGps(gps)
 	}
 
-	// periodically pick up newly added GPS devices. polls every 10s
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			gpsDevices, err := apis.FetchGpsDevices(baseURL)
-			if err != nil {
-				log.Printf("simulator: poll error: %v", err)
-				continue
+	// subscribe to SSE for instant notification of new GPS devices
+	go func() {
+		for {
+			err := apis.SubscribeToNewDevices(ctx, baseURL, startGps)
+			if ctx.Err() != nil {
+				return
 			}
-			for _, gps := range gpsDevices {
-				startGps(gps)
-			}
+			log.Printf("simulator: SSE disconnected (%v), reconnecting...", err)
+			time.Sleep(2 * time.Second)
 		}
-	}
+	}()
+
+	<-ctx.Done()
 }

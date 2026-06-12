@@ -3,6 +3,7 @@ package gps
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -30,6 +31,7 @@ var getGpsHistory string
 
 type Handler struct {
 	*database.Handler
+	EventHub *EventHub
 }
 
 // @Summary      Register a GPS device
@@ -66,9 +68,45 @@ func (h *Handler) CreateGps(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
+	h.EventHub.Publish(gps)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(gps)
+}
+
+// @Summary      Stream new GPS devices via SSE
+// @Tags         gps
+// @Produce      text/event-stream
+// @Success      200
+// @Router       /gps-devices/events [get]
+func (h *Handler) StreamNewDevices(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	ch := h.EventHub.Subscribe()
+	defer h.EventHub.Unsubscribe(ch)
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case gps := <-ch:
+			data, err := json.Marshal(gps)
+			if err != nil {
+				continue
+			}
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+		}
+	}
 }
 
 // @Summary      List GPS devices

@@ -74,7 +74,8 @@ func main() {
 		fmt.Println("successfully seeded database")
 	}
 
-	gpsHandler := &gps.Handler{Handler: h}
+	gpsEventHub := gps.NewEventHub()
+	gpsHandler := &gps.Handler{Handler: h, EventHub: gpsEventHub}
 
 	vehiclesHandler := &vehicles.Handler{Handler: h}
 
@@ -98,6 +99,8 @@ func main() {
 
 	// gps devices
 	mux.HandleFunc("POST /gps-devices", gpsHandler.CreateGps)
+
+	mux.HandleFunc("GET /gps-devices/events", gpsHandler.StreamNewDevices)
 
 	mux.HandleFunc("GET /gps-devices", gpsHandler.FetchGpsDevices)
 
