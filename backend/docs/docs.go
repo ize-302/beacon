@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/gps": {
+        "/gps-devices": {
             "get": {
                 "produces": [
                     "application/json"
@@ -74,66 +74,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/gps-points": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "gps-points"
-                ],
-                "summary": "List GPS points",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/gpspoints.GpsPointResponse"
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "gps-points"
-                ],
-                "summary": "Record a GPS point",
-                "parameters": [
-                    {
-                        "description": "GPS point payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/gpspoints.CreateGpsPoint"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/gpspoints.GpsPointResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/gps/{id}": {
+        "/gps-devices/{id}": {
             "get": {
                 "produces": [
                     "application/json"
@@ -193,7 +134,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/gps/{id}/history": {
+        "/gps-devices/{id}/history": {
             "get": {
                 "produces": [
                     "application/json"
@@ -220,6 +161,65 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/gps-points": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "gps-points"
+                ],
+                "summary": "List GPS points",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/gpspoints.GpsPointResponse"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "gps-points"
+                ],
+                "summary": "Record a GPS point",
+                "parameters": [
+                    {
+                        "description": "GPS point payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/gpspoints.CreateGpsPoint"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/gpspoints.GpsPointResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "string"
                         }

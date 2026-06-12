@@ -8,7 +8,7 @@ SELECT
 	lp.latitude,
 	lp.longitude,
 	lp.created_at AS last_point_at
-FROM gps g
+FROM gps_devices g
 LEFT JOIN vehicles v ON g.vehicle_id = v.id
 LEFT JOIN LATERAL (
 	SELECT latitude, longitude, created_at

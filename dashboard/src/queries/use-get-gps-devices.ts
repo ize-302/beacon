@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/solid-query";
 import { gpsApi } from "~/api/client";
 
-export const useGetGpss = () => {
+export const useGetGpsDevices = () => {
   return useQuery(() => ({
-    queryKey: ["gpss"],
+    queryKey: ["gps-devices"],
     queryFn: async () => {
-      const res = await gpsApi.gpsGet();
+      const res = await gpsApi.gpsDevicesGet();
       return res.data;
     },
   }));

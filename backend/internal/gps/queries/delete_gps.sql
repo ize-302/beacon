@@ -1,1 +1,1 @@
-DELETE FROM gps WHERE id = $1
+DELETE FROM gps_devices WHERE id = $1

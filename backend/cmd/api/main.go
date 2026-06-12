@@ -96,16 +96,16 @@ func main() {
 	// websocket
 	mux.HandleFunc("/ws", socketHandler.WsHandler(hub))
 
-	// gpss
-	mux.HandleFunc("POST /gps", gpsHandler.CreateGps)
+	// gps devices
+	mux.HandleFunc("POST /gps-devices", gpsHandler.CreateGps)
 
-	mux.HandleFunc("GET /gps", gpsHandler.FetchGpss)
+	mux.HandleFunc("GET /gps-devices", gpsHandler.FetchGpsDevices)
 
-	mux.HandleFunc("GET /gps/{id}", gpsHandler.FetchGps)
+	mux.HandleFunc("GET /gps-devices/{id}", gpsHandler.FetchGps)
 
-	mux.HandleFunc("DELETE /gps/{id}", gpsHandler.DeleteGps)
+	mux.HandleFunc("DELETE /gps-devices/{id}", gpsHandler.DeleteGps)
 
-	mux.HandleFunc("GET /gps/{id}/history", gpsHandler.GpsHistory)
+	mux.HandleFunc("GET /gps-devices/{id}/history", gpsHandler.GpsHistory)
 
 	// vehicles
 	mux.HandleFunc("POST /vehicles", vehiclesHandler.CreateVehicle)

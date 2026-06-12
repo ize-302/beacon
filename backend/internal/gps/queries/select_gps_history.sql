@@ -3,7 +3,7 @@ SELECT
 	g.sn AS gps_sn,
 	lp.latitude AS gpspoint_latitude,
 	lp.longitude AS gpspoint_longitude
-FROM gps g
+FROM gps_devices g
 LEFT JOIN LATERAL (
 	SELECT latitude, longitude
 	FROM gpspoints

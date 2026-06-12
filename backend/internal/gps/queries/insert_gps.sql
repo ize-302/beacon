@@ -1,5 +1,5 @@
 WITH inserted AS (
-	INSERT INTO gps (sn, vehicle_id)
+	INSERT INTO gps_devices (sn, vehicle_id)
 	VALUES ($1, $2)
 	RETURNING id, sn, vehicle_id, created_at
 )

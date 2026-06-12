@@ -175,12 +175,12 @@ func Run(baseURL string, nodes map[int64]models.Node, adj map[int64][]int64, ctx
 		log.Printf("simulator: started gps %d (%s)", gps.ID, gps.SN)
 	}
 
-	// initial gpss load
-	gpss, err := apis.FetchGpsDevices(baseURL)
+	// initial gps devices load
+	gpsDevices, err := apis.FetchGpsDevices(baseURL)
 	if err != nil {
 		log.Fatalf("failed to fetch GPS devices: %v", err)
 	}
-	for _, gps := range gpss {
+	for _, gps := range gpsDevices {
 		startGps(gps)
 	}
 
@@ -192,12 +192,12 @@ func Run(baseURL string, nodes map[int64]models.Node, adj map[int64][]int64, ctx
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			gpss, err := apis.FetchGpsDevices(baseURL)
+			gpsDevices, err := apis.FetchGpsDevices(baseURL)
 			if err != nil {
 				log.Printf("simulator: poll error: %v", err)
 				continue
 			}
-			for _, gps := range gpss {
+			for _, gps := range gpsDevices {
 				startGps(gps)
 			}
 		}

@@ -97,8 +97,8 @@ export const GpsApiAxiosParamCreator = function (configuration?: Configuration) 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        gpsGet: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/gps`;
+        gpsDevicesGet: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/gps-devices`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -128,10 +128,10 @@ export const GpsApiAxiosParamCreator = function (configuration?: Configuration) 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        gpsIdDelete: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        gpsDevicesIdDelete: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
-            assertParamExists('gpsIdDelete', 'id', id)
-            const localVarPath = `/gps/{id}`
+            assertParamExists('gpsDevicesIdDelete', 'id', id)
+            const localVarPath = `/gps-devices/{id}`
                 .replace('{id}', encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -162,10 +162,10 @@ export const GpsApiAxiosParamCreator = function (configuration?: Configuration) 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        gpsIdGet: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        gpsDevicesIdGet: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
-            assertParamExists('gpsIdGet', 'id', id)
-            const localVarPath = `/gps/{id}`
+            assertParamExists('gpsDevicesIdGet', 'id', id)
+            const localVarPath = `/gps-devices/{id}`
                 .replace('{id}', encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -196,10 +196,10 @@ export const GpsApiAxiosParamCreator = function (configuration?: Configuration) 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        gpsIdHistoryGet: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        gpsDevicesIdHistoryGet: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
-            assertParamExists('gpsIdHistoryGet', 'id', id)
-            const localVarPath = `/gps/{id}/history`
+            assertParamExists('gpsDevicesIdHistoryGet', 'id', id)
+            const localVarPath = `/gps-devices/{id}/history`
                 .replace('{id}', encodeURIComponent(String(id)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -230,10 +230,10 @@ export const GpsApiAxiosParamCreator = function (configuration?: Configuration) 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        gpsPost: async (body: GpsCreateGpsRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        gpsDevicesPost: async (body: GpsCreateGpsRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'body' is not null or undefined
-            assertParamExists('gpsPost', 'body', body)
-            const localVarPath = `/gps`;
+            assertParamExists('gpsDevicesPost', 'body', body)
+            const localVarPath = `/gps-devices`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -273,10 +273,10 @@ export const GpsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async gpsGet(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<GpsGpsResponse>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.gpsGet(options);
+        async gpsDevicesGet(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<GpsGpsResponse>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.gpsDevicesGet(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['GpsApi.gpsGet']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['GpsApi.gpsDevicesGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -286,10 +286,10 @@ export const GpsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async gpsIdDelete(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.gpsIdDelete(id, options);
+        async gpsDevicesIdDelete(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.gpsDevicesIdDelete(id, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['GpsApi.gpsIdDelete']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['GpsApi.gpsDevicesIdDelete']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -299,10 +299,10 @@ export const GpsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async gpsIdGet(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GpsGpsResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.gpsIdGet(id, options);
+        async gpsDevicesIdGet(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GpsGpsResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.gpsDevicesIdGet(id, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['GpsApi.gpsIdGet']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['GpsApi.gpsDevicesIdGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -312,10 +312,10 @@ export const GpsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async gpsIdHistoryGet(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GpsGpsHistoryResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.gpsIdHistoryGet(id, options);
+        async gpsDevicesIdHistoryGet(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GpsGpsHistoryResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.gpsDevicesIdHistoryGet(id, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['GpsApi.gpsIdHistoryGet']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['GpsApi.gpsDevicesIdHistoryGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -325,10 +325,10 @@ export const GpsApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async gpsPost(body: GpsCreateGpsRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GpsGpsResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.gpsPost(body, options);
+        async gpsDevicesPost(body: GpsCreateGpsRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GpsGpsResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.gpsDevicesPost(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['GpsApi.gpsPost']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['GpsApi.gpsDevicesPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
@@ -346,8 +346,8 @@ export const GpsApiFactory = function (configuration?: Configuration, basePath?:
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        gpsGet(options?: RawAxiosRequestConfig): AxiosPromise<Array<GpsGpsResponse>> {
-            return localVarFp.gpsGet(options).then((request) => request(axios, basePath));
+        gpsDevicesGet(options?: RawAxiosRequestConfig): AxiosPromise<Array<GpsGpsResponse>> {
+            return localVarFp.gpsDevicesGet(options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -356,8 +356,8 @@ export const GpsApiFactory = function (configuration?: Configuration, basePath?:
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        gpsIdDelete(id: number, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.gpsIdDelete(id, options).then((request) => request(axios, basePath));
+        gpsDevicesIdDelete(id: number, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.gpsDevicesIdDelete(id, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -366,8 +366,8 @@ export const GpsApiFactory = function (configuration?: Configuration, basePath?:
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        gpsIdGet(id: number, options?: RawAxiosRequestConfig): AxiosPromise<GpsGpsResponse> {
-            return localVarFp.gpsIdGet(id, options).then((request) => request(axios, basePath));
+        gpsDevicesIdGet(id: number, options?: RawAxiosRequestConfig): AxiosPromise<GpsGpsResponse> {
+            return localVarFp.gpsDevicesIdGet(id, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -376,8 +376,8 @@ export const GpsApiFactory = function (configuration?: Configuration, basePath?:
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        gpsIdHistoryGet(id: number, options?: RawAxiosRequestConfig): AxiosPromise<GpsGpsHistoryResponse> {
-            return localVarFp.gpsIdHistoryGet(id, options).then((request) => request(axios, basePath));
+        gpsDevicesIdHistoryGet(id: number, options?: RawAxiosRequestConfig): AxiosPromise<GpsGpsHistoryResponse> {
+            return localVarFp.gpsDevicesIdHistoryGet(id, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -386,8 +386,8 @@ export const GpsApiFactory = function (configuration?: Configuration, basePath?:
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        gpsPost(body: GpsCreateGpsRequest, options?: RawAxiosRequestConfig): AxiosPromise<GpsGpsResponse> {
-            return localVarFp.gpsPost(body, options).then((request) => request(axios, basePath));
+        gpsDevicesPost(body: GpsCreateGpsRequest, options?: RawAxiosRequestConfig): AxiosPromise<GpsGpsResponse> {
+            return localVarFp.gpsDevicesPost(body, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -402,8 +402,8 @@ export class GpsApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public gpsGet(options?: RawAxiosRequestConfig) {
-        return GpsApiFp(this.configuration).gpsGet(options).then((request) => request(this.axios, this.basePath));
+    public gpsDevicesGet(options?: RawAxiosRequestConfig) {
+        return GpsApiFp(this.configuration).gpsDevicesGet(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -413,8 +413,8 @@ export class GpsApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public gpsIdDelete(id: number, options?: RawAxiosRequestConfig) {
-        return GpsApiFp(this.configuration).gpsIdDelete(id, options).then((request) => request(this.axios, this.basePath));
+    public gpsDevicesIdDelete(id: number, options?: RawAxiosRequestConfig) {
+        return GpsApiFp(this.configuration).gpsDevicesIdDelete(id, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -424,8 +424,8 @@ export class GpsApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public gpsIdGet(id: number, options?: RawAxiosRequestConfig) {
-        return GpsApiFp(this.configuration).gpsIdGet(id, options).then((request) => request(this.axios, this.basePath));
+    public gpsDevicesIdGet(id: number, options?: RawAxiosRequestConfig) {
+        return GpsApiFp(this.configuration).gpsDevicesIdGet(id, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -435,8 +435,8 @@ export class GpsApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public gpsIdHistoryGet(id: number, options?: RawAxiosRequestConfig) {
-        return GpsApiFp(this.configuration).gpsIdHistoryGet(id, options).then((request) => request(this.axios, this.basePath));
+    public gpsDevicesIdHistoryGet(id: number, options?: RawAxiosRequestConfig) {
+        return GpsApiFp(this.configuration).gpsDevicesIdHistoryGet(id, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -446,8 +446,8 @@ export class GpsApi extends BaseAPI {
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public gpsPost(body: GpsCreateGpsRequest, options?: RawAxiosRequestConfig) {
-        return GpsApiFp(this.configuration).gpsPost(body, options).then((request) => request(this.axios, this.basePath));
+    public gpsDevicesPost(body: GpsCreateGpsRequest, options?: RawAxiosRequestConfig) {
+        return GpsApiFp(this.configuration).gpsDevicesPost(body, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

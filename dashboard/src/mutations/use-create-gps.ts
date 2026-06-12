@@ -6,9 +6,10 @@ export const useCreateGps = () => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
     mutationFn: async (body: GpsCreateGpsRequest) => {
-      const res = await gpsApi.gpsPost(body);
+      const res = await gpsApi.gpsDevicesPost(body);
       return res.data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["gpss"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["gps-devices"] }),
   }));
 };

@@ -11,7 +11,7 @@ import (
 )
 
 func FetchGpsDevices(baseURL string) ([]internalgps.GpsResponse, error) {
-	resp, err := http.Get(baseURL + "/gps")
+	resp, err := http.Get(baseURL + "/gps-devices")
 	if err != nil {
 		panic(err)
 	}
@@ -23,10 +23,10 @@ func FetchGpsDevices(baseURL string) ([]internalgps.GpsResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	gpss := []internalgps.GpsResponse{}
+	gpsDevices := []internalgps.GpsResponse{}
 
-	if err = json.Unmarshal(resBody, &gpss); err != nil {
+	if err = json.Unmarshal(resBody, &gpsDevices); err != nil {
 		return nil, err
 	}
-	return gpss, nil
+	return gpsDevices, nil
 }

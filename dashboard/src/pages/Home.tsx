@@ -7,7 +7,7 @@ import {
 } from "solid-js";
 import DeclarativeMap from "~/components/Map";
 import AddPanel from "~/components/AddPanel";
-import { useGetGpss } from "~/queries/use-get-gpss";
+import { useGetGpsDevices } from "~/queries/use-get-gps-devices";
 import { useGetGpsHistory } from "~/queries/use-get-gps-history";
 import type { WsCoordinate } from "~/types";
 
@@ -45,7 +45,7 @@ const Home = () => {
     setLiveTail((prev) => [...prev, [update.longitude, update.latitude]]);
   });
 
-  const gpss = useGetGpss();
+  const gpsDevices = useGetGpsDevices();
   const history = useGetGpsHistory(selectedGpsId);
 
   // Initial history (oldest-first) + live tail appended as vehicle moves
@@ -66,7 +66,7 @@ const Home = () => {
       <Suspense fallback={<div>Loading markers...</div>}>
         <div class="h-svh relative">
           <DeclarativeMap
-            markers={gpss.data ?? []}
+            markers={gpsDevices.data ?? []}
             liveUpdate={liveUpdate()}
             onSelectGps={(id) =>
               setSelectedGpsId((prev) => (prev === id ? null : id))

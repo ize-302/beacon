@@ -6,7 +6,7 @@ export function useGetGpsHistory(id: () => number | null) {
   return createQuery<GpsGpsHistoryResponse>(() => ({
     queryKey: ["gps-history", id()],
     queryFn: async () => {
-      const res = await gpsApi.gpsIdHistoryGet(id()!);
+      const res = await gpsApi.gpsDevicesIdHistoryGet(id()!);
       return res.data;
     },
     enabled: id() !== null,

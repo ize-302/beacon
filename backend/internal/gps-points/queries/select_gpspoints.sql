@@ -6,5 +6,5 @@ SELECT
 	gpsp.timestamp AS gpspoint_timestamp,
 	gpsp.created_at AS gpspoint_created_at
 	FROM gpspoints gpsp
-INNER JOIN gps gps ON gpsp.gps_id = gps.id
+INNER JOIN gps_devices gps ON gpsp.gps_id = gps.id
 
