@@ -9,7 +9,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 const App = (props: any) => <>{props.children}</>;
 
 const root = document.getElementById("root");
-const client = new QueryClient();
+const client = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: Infinity,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 render(
   () => (
