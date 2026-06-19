@@ -1,169 +1,67 @@
+// Package vehicles
 package vehicles
 
 import (
-	"database/sql"
-	"encoding/json"
+	"context"
 	"net/http"
-	"strconv"
 
-	"github.com/ize-302/beacon/backend/internal/database"
-
-	_ "embed"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/ize-302/beacon/backend/internal/common"
 )
 
-//go:embed queries/insert_vehicle.sql
-var insertVehicle string
-
-//go:embed queries/select_vehicles.sql
-var selectVehicles string
-
-//go:embed queries/select_vehicle.sql
-var selectVehicle string
-
-//go:embed queries/delete_vehicle.sql
-var deleteVehicle string
-
-type Handler struct {
-	*database.Handler
+type VehicleHandler struct {
+	APIGroup       *huma.Group
+	VehicleService *VehicleService
 }
 
-// @Summary      CreateVehicle ...
-// @Tags         vehicles
-// @Accept       json
-// @Produce      json
-// @Param        body body CreateVehicleRequest true "Vehicle payload"
-// @Success      201 {object} VehicleResponse
-// @Failure      400 {string} string
-// @Router       /vehicles [post]
-func (h *Handler) CreateVehicle(w http.ResponseWriter, r *http.Request) {
-	var createVehicleRequest CreateVehicleRequest
-	vehicle := Vehicle{}
-	err := json.NewDecoder(r.Body).Decode(&createVehicleRequest)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if createVehicleRequest.PlateNumber == "" {
-		http.Error(w, "plate_number is required", http.StatusBadRequest)
-		return
-	}
-
-	if createVehicleRequest.VehicleType == "" {
-		http.Error(w, "vehicle type is required", http.StatusBadRequest)
-		return
-	}
-
-	err = h.DB.QueryRow(insertVehicle, createVehicleRequest.PlateNumber, createVehicleRequest.VehicleType).Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.VehicleType, &vehicle.CreatedAt)
-	if err != nil {
-		panic(err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	response := &VehicleResponse{
-		ID:          vehicle.ID,
-		PlateNumber: vehicle.PlateNumber,
-		VehicleType: vehicle.VehicleType,
-		CreatedAt:   vehicle.CreatedAt,
-	}
-	json.NewEncoder(w).Encode(response)
+func NewVehicleHandler(apiGroup *huma.Group, vehicleService *VehicleService) *VehicleHandler {
+	return &VehicleHandler{APIGroup: apiGroup, VehicleService: vehicleService}
 }
 
-// @Summary      List vehicles
-// @Tags         vehicles
-// @Produce      json
-// @Success      200 {array} VehicleResponse
-// @Router       /vehicles [get]
-func (h *Handler) FetchVehicles(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	var vehicles []VehicleResponse
+func (h *VehicleHandler) RegisterRoutes() {
+	vehicleGroup := huma.NewGroup(h.APIGroup, "/vehicles")
 
-	rows, err := h.DB.Query(selectVehicles)
-	if err != nil {
-		panic(err)
-	}
+	huma.Register(vehicleGroup, huma.Operation{
+		OperationID:   "create-vehicle",
+		Path:          "",
+		Method:        http.MethodPost,
+		Summary:       "Create new vehicles",
+		DefaultStatus: http.StatusCreated,
+		Tags:          []string{"Vehicles"},
+	}, func(ctx context.Context, input *CreateVehicleRequest) (*common.BaseResponseBody[VehicleResponse], error) {
+		return h.VehicleService.CreateVehicle(input)
+	})
 
-	defer rows.Close()
-	for rows.Next() {
-		var vehicle VehicleResponse
-		err = rows.Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.VehicleType, &vehicle.CreatedAt)
-		if err != nil {
-			panic(err)
-		}
-		vehicles = append(vehicles, vehicle)
-	}
-	err = rows.Err()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	huma.Register(vehicleGroup, huma.Operation{
+		OperationID:   "get-vehicles",
+		Path:          "",
+		Method:        http.MethodGet,
+		Summary:       "List out vehicles",
+		DefaultStatus: http.StatusOK,
+		Tags:          []string{"Vehicles"},
+	}, func(ctx context.Context, input *struct{}) (*common.BaseResponseBody[[]VehicleResponse], error) {
+		return h.VehicleService.FetchVehicles()
+	})
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(vehicles)
-}
+	huma.Register(vehicleGroup, huma.Operation{
+		OperationID:   "get-single-vehicle",
+		Path:          "/{id}",
+		Method:        http.MethodGet,
+		Summary:       "Get vehicle",
+		DefaultStatus: http.StatusOK,
+		Tags:          []string{"Vehicles"},
+	}, func(ctx context.Context, input *GetVehicleParams) (*common.BaseResponseBody[VehicleResponse], error) {
+		return h.VehicleService.FetchVehicle(input)
+	})
 
-func (h *Handler) getVehicleByID(id int) *sql.Row {
-	row := h.DB.QueryRow(selectVehicle, id)
-	return row
-}
-
-// @Summary      Get a vehicle
-// @Tags         vehicles
-// @Produce      json
-// @Param        id path int true "Vehicle ID"
-// @Success      200 {object} VehicleResponse
-// @Failure      404 {string} string
-// @Router       /vehicles/{id} [get]
-func (h *Handler) FetchVehicle(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil {
-		panic(err)
-	}
-
-	var vehicle Vehicle
-	row := h.getVehicleByID(id)
-	switch err := row.Scan(&vehicle.ID, &vehicle.PlateNumber, &vehicle.VehicleType, &vehicle.CreatedAt); err {
-	case sql.ErrNoRows:
-		http.Error(w, "vehicle not found", http.StatusNotFound)
-	case nil:
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		response := &VehicleResponse{
-			ID:          vehicle.ID,
-			PlateNumber: vehicle.PlateNumber,
-			VehicleType: vehicle.VehicleType,
-			CreatedAt:   vehicle.CreatedAt,
-		}
-		json.NewEncoder(w).Encode(response)
-	default:
-		panic(err)
-	}
-}
-
-// @Summary      Delete a vehicle
-// @Tags         vehicles
-// @Param        id path int true "Vehicle ID"
-// @Success      204
-// @Failure      404 {string} string
-// @Router       /vehicles/{id} [delete]
-func (h *Handler) DeleteVehicle(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	row := h.getVehicleByID(id)
-	switch err := row.Scan(&id); err {
-	case sql.ErrNoRows:
-		http.Error(w, "vehicle not found", http.StatusNotFound)
-	case nil:
-		w.Header().Set("Content-Type", "application/json")
-		_ = h.DB.QueryRow(deleteVehicle, id)
-		w.WriteHeader(http.StatusNoContent)
-	default:
-		panic(err)
-	}
+	huma.Register(vehicleGroup, huma.Operation{
+		OperationID:   "delete-vehicle",
+		Path:          "/{id}",
+		Method:        http.MethodDelete,
+		Summary:       "Delete vehicle",
+		DefaultStatus: http.StatusNoContent,
+		Tags:          []string{"Vehicles"},
+	}, func(ctx context.Context, input *DeleteVehicleParams) (*struct{}, error) {
+		return h.VehicleService.DeleteVehicle(input)
+	})
 }

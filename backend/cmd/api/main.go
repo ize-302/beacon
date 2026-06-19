@@ -1,9 +1,3 @@
-// @title          Beacon API
-// @version        1.0
-// @description    Real-time vehicle tracking API
-// @host           localhost:8080
-// @BasePath       /
-
 package main
 
 import (
@@ -12,35 +6,19 @@ import (
 	"net/http"
 	"os"
 
-	_ "github.com/ize-302/beacon/backend/docs"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
+	"github.com/go-chi/chi/v5"
+	"github.com/ize-302/beacon/backend/internal/common"
 	"github.com/ize-302/beacon/backend/internal/database"
-	"github.com/ize-302/beacon/backend/internal/gps"
-	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
+	"github.com/ize-302/beacon/backend/internal/health"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
-	"github.com/ize-302/beacon/backend/internal/ws"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 func main() {
-	var err error
-
-	if err = godotenv.Load(); err != nil {
+	if err := godotenv.Load(); err != nil {
 		log.Println("no .env file found, using environment variables")
 	}
 
@@ -59,78 +37,54 @@ func main() {
 	fmt.Println("successfully connected!")
 	defer db.Close()
 
-	mux := http.NewServeMux()
-
-	h := &database.Handler{
-		DB: db,
-	}
-
-	// SEED DATABASE
-	err = h.SeedDB()
-	if err != nil {
+	h := &database.Handler{DB: db}
+	if err = h.SeedDB(); err != nil {
 		fmt.Println("Error occured while seeding db", err)
-		return
 	} else {
 		fmt.Println("successfully seeded database")
 	}
 
-	gpsEventHub := gps.NewEventHub()
-	gpsHandler := &gps.Handler{Handler: h, EventHub: gpsEventHub}
+	router := chi.NewMux()
 
-	vehiclesHandler := &vehicles.Handler{Handler: h}
+	// huma specific configs
+	config := huma.DefaultConfig("Beacon API", "1.0.0")
+	config.Info.Description = "Real-time vehicle tracking API"
+	config.DocsRenderer = huma.DocsRendererSwaggerUI
+	config.CreateHooks = nil // disabled $schema
+	config.DocsPath = "/swagger"
+	huma.NewError = func(status int, message string, errs ...error) huma.StatusError {
+		return &common.MyError{
+			Data:    nil,
+			Status:  status,
+			Message: message,
+		}
+	}
 
-	// assignmentsHandler := &assignments.Handler{Handler: h}
+	api := humachi.New(router, config)
+	apiGroup := huma.NewGroup(api, "/api/v1")
+	_ = apiGroup
 
-	hub := ws.NewHub()
-	gpspointsHandler := &gpspoints.Handler{Handler: h, Hub: hub}
-
-	socketHandler := &ws.Handler{Handler: h}
-
-	// swagger
-	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
-
-	// health
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	// websocket
-	mux.HandleFunc("/ws", socketHandler.WsHandler(hub))
-
-	// gps devices
-	mux.HandleFunc("POST /gps-devices", gpsHandler.CreateGps)
-
-	mux.HandleFunc("GET /gps-devices/events", gpsHandler.StreamNewDevices)
-
-	mux.HandleFunc("GET /gps-devices", gpsHandler.FetchGpsDevices)
-
-	mux.HandleFunc("GET /gps-devices/{id}", gpsHandler.FetchGps)
-
-	mux.HandleFunc("DELETE /gps-devices/{id}", gpsHandler.DeleteGps)
-
-	mux.HandleFunc("GET /gps-devices/{id}/history", gpsHandler.GpsHistory)
+	// health routes
+	health.NewHealthHander(apiGroup).RegisterRoutes()
 
 	// vehicles
-	mux.HandleFunc("POST /vehicles", vehiclesHandler.CreateVehicle)
+	vehicleRepo := vehicles.NewVehicleRepository(db)
+	vehicleService := vehicles.NewVehicleService(vehicleRepo)
+	vehicles.NewVehicleHandler(apiGroup, vehicleService).RegisterRoutes()
 
-	mux.HandleFunc("GET /vehicles", vehiclesHandler.FetchVehicles)
-
-	mux.HandleFunc("GET /vehicles/{id}", vehiclesHandler.FetchVehicle)
-
-	mux.HandleFunc("DELETE /vehicles/{id}", vehiclesHandler.DeleteVehicle)
+	// gps devices
 
 	// gps-points
-	mux.HandleFunc("POST /gps-points", gpspointsHandler.SaveGpsPoint)
 
-	mux.HandleFunc("GET /gps-points", gpspointsHandler.FetchGpsPoints)
+	// websocket
 
-	// auditlogs
-	// mux.HandleFunc("GET /logs", FetchLogs)
-
-	err = http.ListenAndServe(":8080", corsMiddleware(mux))
-	if err != nil {
-		fmt.Println("Server failed to listen on port 8080...")
-		return
+	appPort := os.Getenv("PORT")
+	if appPort == "" {
+		appPort = "8080"
 	}
-	fmt.Println("Server listening on port 8080...")
+	fmt.Printf("Server listening on port %s...\n", appPort)
+	err = http.ListenAndServe("127.0.0.1:"+appPort, router)
+	if err != nil {
+		fmt.Printf("Server failed to listen on port %s\n", appPort)
+	}
 }
