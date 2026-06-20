@@ -28,11 +28,11 @@ flowchart LR
 
 ## Stack
 
-| Layer     | Tech                                                     |
-| --------- | -------------------------------------------------------- |
-| Backend   | Go, `net/http`, `gorilla/websocket`, PostgreSQL, Swagger |
-| Simulator | Go, BFS pathfinding, `paulmach/osm` (OSM PBF parsing)    |
-| Dashboard | SolidJS, Vite, Mapbox GL JS, TanStack Query, Axios       |
+| Layer     | Tech                                                                          |
+| --------- | ----------------------------------------------------------------------------- |
+| Backend   | Go, `net/http`, `go-chi/chi`, `gorilla/websocket`, PostgreSQL, Huma           |
+| Simulator | Go, BFS pathfinding, `paulmach/osm` (OSM PBF parsing)                        |
+| Dashboard | SolidJS, Vite, Mapbox GL JS, TanStack Query, Axios, openapi-generator client |
 
 ## Getting started
 
@@ -90,4 +90,8 @@ npm run dev
 
 Full interactive docs available at [`http://localhost:8080/swagger/`](http://localhost:8080/swagger/) when the backend is running.
 
+OpenAPI JSON schema is served at `/openapi.json` and is used to generate the typed dashboard client via `openapi-generator`.
+
 WebSocket endpoint `/ws` streams `{ gps_id, latitude, longitude, bearing, timestamp }` for every position update.
+
+SSE endpoint `/api/v1/gps-devices/events` streams newly registered GPS devices so the simulator picks them up automatically without polling.
