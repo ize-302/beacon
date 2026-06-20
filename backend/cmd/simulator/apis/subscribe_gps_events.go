@@ -11,7 +11,7 @@ import (
 )
 
 func SubscribeToNewDevices(ctx context.Context, baseURL string, onNew func(internalgps.GpsResponse)) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/gps-devices/events", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/gps-devices/events", nil)
 	if err != nil {
 		return err
 	}

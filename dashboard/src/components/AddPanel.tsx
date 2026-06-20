@@ -13,9 +13,9 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import {
-  type VehiclesVehicleResponse,
-  VehiclesVehicleType,
-  type VehiclesVehicleType as VehicleTypeEnum,
+  type VehicleResponse,
+  CreateVehicleRequestBodyVehicleTypeEnum,
+  type CreateVehicleRequestBodyVehicleTypeEnum as VehicleTypeEnum,
 } from "~/client/api";
 import { useGetVehicles } from "~/queries/use-get-vehicles";
 import { useCreateVehicle } from "~/mutations/use-create-vehicle";
@@ -32,9 +32,9 @@ export default function AddPanel() {
   );
   const [sn, setSn] = createSignal("");
   const [selectedVehicle, setSelectedVehicle] =
-    createSignal<VehiclesVehicleResponse | null>(null);
+    createSignal<VehicleResponse | null>(null);
 
-  const vehicleTypeOptions = Object.values(VehiclesVehicleType);
+  const vehicleTypeOptions = Object.values(CreateVehicleRequestBodyVehicleTypeEnum);
   const vehicles = useGetVehicles();
   const createVehicle = useCreateVehicle();
   const createGps = useCreateGps();
@@ -178,7 +178,7 @@ export default function AddPanel() {
                     )}
                   >
                     <SelectTrigger>
-                      <SelectValue<VehiclesVehicleResponse>>
+                      <SelectValue<VehicleResponse>>
                         {(state) => state.selectedOption()?.plate_number}
                       </SelectValue>
                     </SelectTrigger>

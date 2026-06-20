@@ -22,7 +22,7 @@ func SendGpsPosition(payload gpspoints.CreateGpsPoint, baseURL string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/gps-points", bodyReader)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/gps-points", bodyReader)
 	if err != nil {
 		panic(err)
 	}

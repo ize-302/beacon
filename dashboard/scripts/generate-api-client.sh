@@ -1,6 +1,6 @@
 #!/bin/bash
 
-API_SERVER="${API_SERVER:-http://localhost:8080/swagger/doc.json}" # If variable not set or null, use default.
+API_SERVER="${API_SERVER:-http://localhost:8080/openapi.json}" # If variable not set or null, use default.
 
 OUTPUT_FOLDER="./src/client"
 

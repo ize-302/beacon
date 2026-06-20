@@ -11,11 +11,28 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/ize-302/beacon/backend/internal/common"
 	"github.com/ize-302/beacon/backend/internal/database"
+	"github.com/ize-302/beacon/backend/internal/gps"
+	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
 	"github.com/ize-302/beacon/backend/internal/health"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
+	"github.com/ize-302/beacon/backend/internal/ws"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 func main() {
 	if err := godotenv.Load(); err != nil {
@@ -73,17 +90,26 @@ func main() {
 	vehicles.NewVehicleHandler(apiGroup, vehicleService).RegisterRoutes()
 
 	// gps devices
+	gpsRepo := gps.NewGpsRepository(db)
+	eventHub := gps.NewEventHub()
+	gpsService := gps.NewGpsService(gpsRepo, eventHub)
+	gps.NewGpsHandler(apiGroup, gpsService, router).RegisterRoutes()
 
 	// gps-points
+	wsHub := ws.NewHub()
+	gpsPointRepo := gpspoints.NewGpsPointRepository(db)
+	gpsPointService := gpspoints.NewGpsPointService(gpsPointRepo, wsHub)
+	gpspoints.NewGpsPointHandler(apiGroup, gpsPointService).RegisterRoutes()
 
 	// websocket
+	ws.NewWsHandler(wsHub).RegisterRoutes(router)
 
 	appPort := os.Getenv("PORT")
 	if appPort == "" {
 		appPort = "8080"
 	}
 	fmt.Printf("Server listening on port %s...\n", appPort)
-	err = http.ListenAndServe("127.0.0.1:"+appPort, router)
+	err = http.ListenAndServe("127.0.0.1:"+appPort, corsMiddleware(router))
 	if err != nil {
 		fmt.Printf("Server failed to listen on port %s\n", appPort)
 	}

@@ -5,8 +5,8 @@ export const useGetVehicles = () => {
   return useQuery(() => ({
     queryKey: ["vehicles"],
     queryFn: async () => {
-      const res = await vehiclesApi.vehiclesGet();
-      return res.data;
+      const res = await vehiclesApi.getVehicles();
+      return res.data.data;
     },
   }));
 };

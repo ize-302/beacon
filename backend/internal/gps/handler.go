@@ -1,86 +1,89 @@
+// Package gps
 package gps
 
 import (
-	"database/sql"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
-	"time"
 
-	_ "embed"
-
-	"github.com/ize-302/beacon/backend/internal/database"
-	"github.com/ize-302/beacon/backend/internal/vehicles"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/go-chi/chi/v5"
+	"github.com/ize-302/beacon/backend/internal/common"
 )
 
-//go:embed queries/insert_gps.sql
-var insertGps string
-
-//go:embed queries/select_gps_devices.sql
-var selectGpsDevices string
-
-//go:embed queries/select_gps.sql
-var selectGps string
-
-//go:embed queries/delete_gps.sql
-var deleteGps string
-
-//go:embed queries/select_gps_history.sql
-var getGpsHistory string
-
-type Handler struct {
-	*database.Handler
-	EventHub *EventHub
+type GpsHandler struct {
+	APIGroup   *huma.Group
+	GpsService *GpsService
+	Router     chi.Router
 }
 
-// @Summary      Register a GPS device
-// @Tags         gps
-// @Accept       json
-// @Produce      json
-// @Param        body body CreateGpsRequest true "GPS payload"
-// @Success      201 {object} GpsResponse
-// @Failure      400 {string} string
-// @Router       /gps-devices [post]
-func (h *Handler) CreateGps(w http.ResponseWriter, r *http.Request) {
-	var createGpsRequest CreateGpsRequest
-	gps := GpsResponse{}
-	gps.Vehicle = &vehicles.VehicleResponse{}
-
-	err := json.NewDecoder(r.Body).Decode(&createGpsRequest)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if createGpsRequest.SN == "" {
-		http.Error(w, "Serial number is required", http.StatusBadRequest)
-		return
-	}
-
-	if createGpsRequest.VehicleID == 0 {
-		http.Error(w, "Vehicle ID is required", http.StatusBadRequest)
-		return
-	}
-
-	err = h.DB.QueryRow(insertGps, createGpsRequest.SN, createGpsRequest.VehicleID).Scan(&gps.ID, &gps.SN, &gps.CreatedAt, &gps.Vehicle.ID, &gps.Vehicle.PlateNumber, &gps.Vehicle.CreatedAt)
-	if err != nil {
-		panic(err)
-	}
-
-	h.EventHub.Publish(gps)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(gps)
+func NewGpsHandler(apiGroup *huma.Group, gpsService *GpsService, router chi.Router) *GpsHandler {
+	return &GpsHandler{APIGroup: apiGroup, GpsService: gpsService, Router: router}
 }
 
-// @Summary      Stream new GPS devices via SSE
-// @Tags         gps
-// @Produce      text/event-stream
-// @Success      200
-// @Router       /gps-devices/events [get]
-func (h *Handler) StreamNewDevices(w http.ResponseWriter, r *http.Request) {
+func (h *GpsHandler) RegisterRoutes() {
+	gpsGroup := huma.NewGroup(h.APIGroup, "/gps-devices")
+
+	h.Router.Get("/api/v1/gps-devices/events", h.streamNewDevices)
+
+	huma.Register(gpsGroup, huma.Operation{
+		OperationID:   "create-gps-device",
+		Path:          "",
+		Method:        http.MethodPost,
+		Summary:       "Register a GPS device",
+		DefaultStatus: http.StatusCreated,
+		Tags:          []string{"GPS Devices"},
+	}, func(ctx context.Context, input *CreateGpsRequest) (*common.BaseResponseBody[GpsResponse], error) {
+		return h.GpsService.CreateGps(input)
+	})
+
+	huma.Register(gpsGroup, huma.Operation{
+		OperationID:   "get-gps-devices",
+		Path:          "",
+		Method:        http.MethodGet,
+		Summary:       "List GPS devices",
+		DefaultStatus: http.StatusOK,
+		Tags:          []string{"GPS Devices"},
+	}, func(ctx context.Context, input *struct{}) (*common.BaseResponseBody[[]GpsResponse], error) {
+		return h.GpsService.FetchGpsDevices()
+	})
+
+	huma.Register(gpsGroup, huma.Operation{
+		OperationID:   "get-gps-device",
+		Path:          "/{id}",
+		Method:        http.MethodGet,
+		Summary:       "Get a GPS device",
+		DefaultStatus: http.StatusOK,
+		Tags:          []string{"GPS Devices"},
+	}, func(ctx context.Context, input *GetGpsParams) (*common.BaseResponseBody[GpsResponse], error) {
+		return h.GpsService.FetchGps(input)
+	})
+
+	huma.Register(gpsGroup, huma.Operation{
+		OperationID:   "delete-gps-device",
+		Path:          "/{id}",
+		Method:        http.MethodDelete,
+		Summary:       "Delete a GPS device",
+		DefaultStatus: http.StatusNoContent,
+		Tags:          []string{"GPS Devices"},
+	}, func(ctx context.Context, input *DeleteGpsParams) (*struct{}, error) {
+		return h.GpsService.DeleteGps(input)
+	})
+
+	huma.Register(gpsGroup, huma.Operation{
+		OperationID:   "get-gps-history",
+		Path:          "/{id}/history",
+		Method:        http.MethodGet,
+		Summary:       "Get GPS device location history",
+		DefaultStatus: http.StatusOK,
+		Tags:          []string{"GPS Devices"},
+	}, func(ctx context.Context, input *GetGpsHistoryParams) (*common.BaseResponseBody[GpsHistoryResponse], error) {
+		return h.GpsService.FetchGpsHistory(input)
+	})
+}
+
+func (h *GpsHandler) streamNewDevices(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -91,8 +94,8 @@ func (h *Handler) StreamNewDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ch := h.EventHub.Subscribe()
-	defer h.EventHub.Unsubscribe(ch)
+	ch := h.GpsService.EventHub.Subscribe()
+	defer h.GpsService.EventHub.Unsubscribe(ch)
 
 	for {
 		select {
@@ -107,180 +110,4 @@ func (h *Handler) StreamNewDevices(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
-}
-
-// @Summary      List GPS devices
-// @Tags         gps
-// @Produce      json
-// @Success      200 {array} GpsResponse
-// @Router       /gps-devices [get]
-func (h *Handler) FetchGpsDevices(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	var gpsDevices []GpsResponse
-
-	rows, err := h.DB.Query(selectGpsDevices)
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var gps GpsResponse
-		gps.Vehicle = &vehicles.VehicleResponse{}
-
-		var lat, lng sql.NullFloat64
-		var lastAt sql.NullTime
-
-		err = rows.Scan(&gps.ID, &gps.SN, &gps.CreatedAt, &gps.Vehicle.ID, &gps.Vehicle.PlateNumber, &gps.Vehicle.CreatedAt, &lat, &lng, &lastAt)
-		if err != nil {
-			panic(err)
-		}
-		if lat.Valid && lng.Valid {
-			updatedAt := time.Time{}
-			if lastAt.Valid {
-				updatedAt = lastAt.Time
-			}
-			gps.LastCoordinate = &Coordinate{
-				Latitude:  lat.Float64,
-				Longitude: lng.Float64,
-				UpdatedAt: updatedAt,
-			}
-		}
-		gpsDevices = append(gpsDevices, gps)
-	}
-	err = rows.Err()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(gpsDevices)
-}
-
-func (h *Handler) getGps(id int) *sql.Row {
-	row := h.DB.QueryRow(selectGps, id)
-	return row
-}
-
-// @Summary      Get a GPS device
-// @Tags         gps
-// @Produce      json
-// @Param        id path int true "GPS ID"
-// @Success      200 {object} GpsResponse
-// @Failure      404 {string} string
-// @Router       /gps-devices/{id} [get]
-func (h *Handler) FetchGps(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil {
-		panic(err)
-	}
-
-	var gps GpsResponse
-	gps.Vehicle = &vehicles.VehicleResponse{}
-
-	var lat, lng sql.NullFloat64
-	var lastAt sql.NullTime
-
-	row := h.getGps(id)
-	switch err := row.Scan(&gps.ID, &gps.SN, &gps.CreatedAt, &gps.Vehicle.ID, &gps.Vehicle.PlateNumber, &gps.Vehicle.CreatedAt, &lat, &lng, &lastAt); err {
-	case sql.ErrNoRows:
-		http.Error(w, "gps not found", http.StatusNotFound)
-	case nil:
-		if lat.Valid && lng.Valid {
-			updatedAt := time.Time{}
-			if lastAt.Valid {
-				updatedAt = lastAt.Time
-			}
-			gps.LastCoordinate = &Coordinate{
-				Latitude:  lat.Float64,
-				Longitude: lng.Float64,
-				UpdatedAt: updatedAt,
-			}
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(gps)
-	default:
-		panic(err)
-	}
-}
-
-// @Summary      Delete a GPS device
-// @Tags         gps
-// @Param        id path int true "GPS ID"
-// @Success      204
-// @Failure      404 {string} string
-// @Router       /gps-devices/{id} [delete]
-func (h *Handler) DeleteGps(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	row := h.getGps(id)
-	switch err := row.Scan(&id); err {
-	case sql.ErrNoRows:
-		http.Error(w, "gps not found", http.StatusNotFound)
-	case nil:
-		w.Header().Set("Content-Type", "application/json")
-		_ = h.DB.QueryRow(deleteGps, id)
-		w.WriteHeader(http.StatusNoContent)
-	default:
-		panic(err)
-	}
-}
-
-// @Summary      Get a GpsHistory ...
-// @Tags         gps
-// @Produce      json
-// @Param        id path int true "GPS ID"
-// @Success      200 {object} GpsHistoryResponse
-// @Failure      404 {string} string
-// @Router       /gps-devices/{id}/history [get]
-func (h *Handler) GpsHistory(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	rows, err := h.DB.Query(getGpsHistory, id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var gpsHistory GpsHistoryResponse
-	coordinates := []Coordinate{}
-	found := false
-
-	for rows.Next() {
-		var lat, lng sql.NullFloat64
-		if err := rows.Scan(&gpsHistory.GpsID, &gpsHistory.GpsSN, &lat, &lng); err != nil {
-			panic(err)
-		}
-		found = true
-		if lat.Valid && lng.Valid {
-			coordinates = append(coordinates, Coordinate{
-				Latitude:  lat.Float64,
-				Longitude: lng.Float64,
-			})
-		}
-	}
-	if err := rows.Err(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if !found {
-		http.Error(w, "gps not found", http.StatusNotFound)
-		return
-	}
-
-	gpsHistory.Coordinates = &coordinates
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(gpsHistory)
 }

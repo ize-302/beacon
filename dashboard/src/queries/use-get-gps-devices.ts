@@ -5,8 +5,8 @@ export const useGetGpsDevices = () => {
   return useQuery(() => ({
     queryKey: ["gps-devices"],
     queryFn: async () => {
-      const res = await gpsApi.gpsDevicesGet();
-      return res.data;
+      const res = await gpsApi.getGpsDevices();
+      return res.data.data;
     },
   }));
 };

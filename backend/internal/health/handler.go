@@ -13,6 +13,8 @@ type HealthHandler struct {
 	APIGroup *huma.Group
 }
 
+type HealthCheckResponse struct{}
+
 func NewHealthHander(apiGroup *huma.Group) *HealthHandler {
 	return &HealthHandler{APIGroup: apiGroup}
 }
@@ -27,9 +29,8 @@ func (h *HealthHandler) RegisterRoutes() {
 		Summary:       "Health check",
 		DefaultStatus: http.StatusOK,
 		Tags:          []string{"Health"},
-	}, func(ctx context.Context, input *struct{}) (*common.BaseResponseBody[any], error) {
-		resp := &common.BaseResponseBody[any]{}
-		resp.Body.Data = nil
+	}, func(ctx context.Context, input *struct{}) (*common.BaseResponseBody[HealthCheckResponse], error) {
+		resp := &common.BaseResponseBody[HealthCheckResponse]{}
 		resp.Body.Status = true
 		resp.Body.Message = "All is well in Ba sing seh"
 		return resp, nil
