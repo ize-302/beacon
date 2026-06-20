@@ -42,8 +42,9 @@ flowchart LR
 - Node.js 18+
 - PostgreSQL
 - Mapbox access token
+- [Task](https://taskfile.dev) (optional, for running all services at once)
 
-### Backend
+### Environment files
 
 Create a `.env` file in `backend/`:
 
@@ -56,22 +57,6 @@ DB_PASSWORD=yourpassword
 DB_NAME=beacon
 ```
 
-```bash
-cd backend
-go run cmd/api/main.go
-```
-
-### Simulator
-
-Requires the Lagos OSM PBF file at `backend/cmd/simulator/map_data/lagos.osm.pbf`.
-
-```bash
-cd backend
-go run cmd/simulator/main.go
-```
-
-### Dashboard
-
 Create a `.env` file in `dashboard/`:
 
 ```env
@@ -80,10 +65,35 @@ VITE_WS_URL=ws://localhost:8080/ws
 VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_token
 ```
 
+Also requires the Lagos OSM PBF file at `backend/cmd/simulator/map_data/lagos.osm.pbf`.
+
+### Run with Task (recommended)
+
+Starts the API, simulator, and dashboard in parallel. The simulator waits for the API to be healthy before starting.
+
 ```bash
-cd dashboard
-npm install
-npm run dev
+task dev
+```
+
+Individual services:
+
+```bash
+task api-service   # backend with live reload (air)
+task simulator     # GPS simulator
+task dashboard     # frontend dev server
+```
+
+### Run manually
+
+```bash
+# Backend
+cd backend && go run cmd/api/main.go
+
+# Simulator (in a separate terminal)
+cd backend && go run cmd/simulator/main.go
+
+# Dashboard (in a separate terminal)
+cd dashboard && npm install && npm run dev
 ```
 
 ## API
