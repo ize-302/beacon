@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/ize-302/beacon/backend/internal/health"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
 	"github.com/ize-302/beacon/backend/internal/ws"
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
@@ -35,19 +33,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Println("no .env file found, using environment variables")
-	}
-
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	password := os.Getenv("DB_PASSWORD")
-	dbname := os.Getenv("DB_NAME")
-
-	conn := fmt.Sprintf("host=%s port=%s user=%s  password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-
-	db, err := database.DBConn(conn)
+	db, err := database.DBConn()
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +65,6 @@ func main() {
 
 	api := humachi.New(router, config)
 	apiGroup := huma.NewGroup(api, "/api/v1")
-	_ = apiGroup
 
 	// health routes
 	health.NewHealthHander(apiGroup).RegisterRoutes()
@@ -104,13 +89,13 @@ func main() {
 	// websocket
 	ws.NewWsHandler(wsHub).RegisterRoutes(router)
 
-	appPort := os.Getenv("PORT")
-	if appPort == "" {
-		appPort = "8080"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
-	fmt.Printf("Server listening on port %s...\n", appPort)
-	err = http.ListenAndServe("127.0.0.1:"+appPort, corsMiddleware(router))
+	fmt.Printf("Server listening on port %s...\n", port)
+	err = http.ListenAndServe("127.0.0.1:"+port, corsMiddleware(router))
 	if err != nil {
-		fmt.Printf("Server failed to listen on port %s\n", appPort)
+		fmt.Printf("Server failed to listen on port %s\n", port)
 	}
 }
