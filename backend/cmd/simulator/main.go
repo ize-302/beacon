@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	graphbuilder "github.com/ize-302/beacon/backend/cmd/simulator/graph_builder"
 	movementengine "github.com/ize-302/beacon/backend/cmd/simulator/movement_engine"
+	"github.com/ize-302/osmgraph/osmgraph"
 	"github.com/joho/godotenv"
 )
 
@@ -22,7 +22,17 @@ func main() {
 		baseURL = fmt.Sprintf("http://localhost:%s", os.Getenv("PORT"))
 	}
 
-	nodes, adj := graphbuilder.BuildGraph()
+	f, err := os.Open("cmd/simulator/map_data/lagos.osm.pbf")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	// this now uses an osm library by yours truely: https://github.com/ize-302/osmgraph
+	nodes, adj, err := osmgraph.GraphBuilder(f, osmgraph.DefaultRoadFilter, osmgraph.DefaultOneway)
+	if err != nil {
+		log.Fatal(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

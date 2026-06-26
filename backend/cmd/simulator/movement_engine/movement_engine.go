@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/ize-302/beacon/backend/cmd/simulator/apis"
-	"github.com/ize-302/beacon/backend/cmd/simulator/models"
 	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
+	"github.com/paulmach/osm"
 
 	internalgps "github.com/ize-302/beacon/backend/internal/gps"
 )
@@ -60,11 +60,11 @@ func bfsPath(adj map[int64][]int64, start, goal int64) []int64 {
 // bearing = atan2(x, y)           // radians, −π to +π
 // degrees = (bearing·180/π + 360) % 360   // normalize to 0–360
 // result: 0 = North, 90 = East, 180 = South, 270 = West.
-func computeBearing(from, to models.Node) float64 {
+func computeBearing(from, to osm.Node) float64 {
 	lat1 := from.Lat * math.Pi / 180
-	lng1 := from.Lng * math.Pi / 180
+	lng1 := from.Lon * math.Pi / 180
 	lat2 := to.Lat * math.Pi / 180
-	lng2 := to.Lng * math.Pi / 180
+	lng2 := to.Lon * math.Pi / 180
 
 	dLng := lng2 - lng1 // diff in longitue
 
@@ -81,12 +81,12 @@ func computeBearing(from, to models.Node) float64 {
 	return degrees
 }
 
-func closestNode(nodes map[int64]models.Node, lat, lng float64) int64 {
+func closestNode(nodes map[int64]osm.Node, lat, lng float64) int64 {
 	var closest int64
 	minDist := math.MaxFloat64
 	for id, n := range nodes {
 		latDiff := n.Lat - lat
-		lngDiff := n.Lng - lng
+		lngDiff := n.Lon - lng
 		d := (latDiff * latDiff) + (lngDiff * lngDiff)
 		if d < minDist {
 			minDist = d
@@ -104,7 +104,7 @@ func pickRandomNode(adj map[int64][]int64) int64 {
 	return keys[rand.Intn(len(keys))]
 }
 
-func DriveVehicle(baseURL string, gps internalgps.GpsResponse, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
+func DriveVehicle(baseURL string, gps internalgps.GpsResponse, nodes map[int64]osm.Node, adj map[int64][]int64, ctx context.Context) {
 	var current int64
 	if gps.LastCoordinate != nil {
 		current = closestNode(nodes, gps.LastCoordinate.Latitude, gps.LastCoordinate.Longitude)
@@ -147,7 +147,7 @@ func DriveVehicle(baseURL string, gps internalgps.GpsResponse, nodes map[int64]m
 			apis.SendGpsPosition(gpspoints.CreateGpsPoint{
 				GpsID:     gps.ID,
 				Latitude:  node.Lat,
-				Longitude: node.Lng,
+				Longitude: node.Lon,
 				Bearing:   computeBearing(prevNode, node),
 				Timestamp: time.Now().UnixMilli(),
 			}, baseURL)
@@ -155,7 +155,7 @@ func DriveVehicle(baseURL string, gps internalgps.GpsResponse, nodes map[int64]m
 	}
 }
 
-func Run(baseURL string, nodes map[int64]models.Node, adj map[int64][]int64, ctx context.Context) {
+func Run(baseURL string, nodes map[int64]osm.Node, adj map[int64][]int64, ctx context.Context) {
 	var mu sync.Mutex
 	running := make(map[int]struct{})
 
