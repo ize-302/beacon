@@ -18,20 +18,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 func main() {
 	db, err := database.DBConn()
 	if err != nil {
@@ -94,7 +80,7 @@ func main() {
 		port = "8080"
 	}
 	fmt.Printf("Server listening on port %s...\n", port)
-	err = http.ListenAndServe("127.0.0.1:"+port, corsMiddleware(router))
+	err = http.ListenAndServe(":"+port, common.CorsMiddleware(router))
 	if err != nil {
 		fmt.Printf("Server failed to listen on port %s\n", port)
 	}
