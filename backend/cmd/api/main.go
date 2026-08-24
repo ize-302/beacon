@@ -80,7 +80,7 @@ func main() {
 		port = "8080"
 	}
 	fmt.Printf("Server listening on port %s...\n", port)
-	err = http.ListenAndServe("127.0.0.1:"+port, common.CorsMiddleware(router))
+	err = http.ListenAndServe(":"+port, common.CorsMiddleware(router))
 	if err != nil {
 		fmt.Printf("Server failed to listen on port %s\n", port)
 	}

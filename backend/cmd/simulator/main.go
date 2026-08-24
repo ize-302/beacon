@@ -19,7 +19,7 @@ func main() {
 	}
 	baseURL = os.Getenv("API_BASE_URL")
 	if baseURL == "" {
-		baseURL = fmt.Sprintf("http://localhost:%s", os.Getenv("PORT"))
+		baseURL = fmt.Sprintf("%s", os.Getenv("API_BASE_URL"))
 	}
 
 	f, err := os.Open("cmd/simulator/map_data/lagos.osm.pbf")
