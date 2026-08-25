@@ -19,7 +19,8 @@
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
+    /* off: the openapi-generator client in src/client uses parameter properties */
+    "erasableSyntaxOnly": false,
     "noFallthroughCasesInSwitch": true,
 
     /* Path aliases */
