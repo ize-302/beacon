@@ -42,7 +42,10 @@ flowchart LR
 - Go 1.26+ — only if running the backend outside Docker
 - Node.js 18+ — the dashboard always runs on the host
 - Mapbox access token
-- The Lagos OSM PBF file at `backend/cmd/simulator/map_data/lagos.osm.pbf`
+- The Lagos OSM PBF file at `backend/cmd/simulator/map_data/lagos.osm.pbf`. It is LFS-tracked, so
+  `git lfs pull` after cloning — a plain clone leaves a 133-byte pointer in its place, and the
+  simulator fails with `osmgraph: scan error: blobHeader size >= 64Kb`. It can also be downloaded
+  from the [`map-data` release](https://github.com/ize-302/beacon/releases/tag/map-data).
 
 ### Environment files
 
@@ -136,6 +139,103 @@ The simulator resolves the OSM file relative to the working directory, so run it
 | Dashboard | not containerised        | `localhost:5173` |
 
 Postgres is published on **5433** to avoid clashing with a local Postgres on 5432.
+
+## Deploying to Railway
+
+One-time setup. After this, every push to the deployed branch redeploys automatically.
+
+`docker-compose.yml` is **not** used by Railway — it builds `backend/Dockerfile` directly, and
+with no `--target` that means the final `prod` stage.
+
+### 1. Create the services
+
+Four services in one project:
+
+| Service     | Source                        | Root directory | Builder                     |
+| ----------- | ----------------------------- | -------------- | --------------------------- |
+| `Postgres`  | Railway's Postgres template   | —              | —                           |
+| `backend`   | this repo                     | `backend`      | Dockerfile (`prod` stage)   |
+| `simulator` | this repo                     | `backend`      | Dockerfile (`prod` stage)   |
+| `dashboard` | this repo                     | `dashboard`    | Railpack (static Vite site) |
+
+Set **Root Directory** on each — without it Railway builds from the repo root and won't find the
+Dockerfile.
+
+`backend` and `simulator` build the *same image* and differ only in what they run. On `simulator`,
+set Settings → Deploy → **Custom Start Command**:
+
+```
+/app/simulator/main
+```
+
+This mirrors the one-process-per-container split in `docker-compose.yml`.
+
+### 2. Set variables
+
+**`backend`**
+
+```
+DATABASE_URL = ${{Postgres.DATABASE_URL}}?sslmode=disable
+PORT         = 8080
+```
+
+`connString()` checks `DATABASE_URL` first and returns early, so none of the `DB_*` / `POSTGRES_*`
+variables are needed in deployment. The `sslmode=disable` suffix matters: `lib/pq` defaults to
+`sslmode=require` for URL-style connection strings, but Railway's private-network Postgres doesn't
+terminate TLS.
+
+**`simulator`**
+
+```
+API_BASE_URL = http://${{backend.RAILWAY_PRIVATE_DOMAIN}}:8080
+```
+
+Use the reference-variable form, not a hand-typed hostname — Railway resolves it and draws the
+service-to-service link on the canvas. Plain `http://` (there's no TLS inside the private network),
+an explicit port, and no trailing slash, since the simulator appends paths directly.
+
+**`dashboard`** — Vite inlines these at **build** time, so they must exist before the build and a
+change needs a redeploy:
+
+```
+VITE_API_BASE_URL        = https://<backend-public-domain>
+VITE_WS_URL              = wss://<backend-public-domain>/ws
+VITE_MAPBOX_ACCESS_TOKEN = <token>
+```
+
+`wss://`, not `ws://` — a browser on an HTTPS page refuses an insecure WebSocket.
+
+### 3. Generate public domains
+
+For `backend` and `dashboard` only. On `backend`, the domain's **target port must match `PORT`**
+(8080); a domain created before `PORT` was set can keep a stale auto-detected port and every
+request then returns 502.
+
+Do **not** give `simulator` a domain — it has no HTTP server, so Railway would wait forever for a
+port to open.
+
+### Notes
+
+- **Private networking is IPv6-only.** `main.go` binds `:8080`, which gives a dual-stack listener,
+  so `*.railway.internal` resolves and connects. Binding `127.0.0.1` instead breaks this the same
+  way it breaks Docker.
+- **No `depends_on` equivalent.** The simulator panics rather than retries if the API isn't up yet,
+  so on a cold project it crash-loops until the API is serving. Railway's restart policy recovers
+  it.
+- **Startup logs to look for** on `backend`: `successfully connected!` then
+  `Server listening on port 8080...`. A `database not reachable (attempt n/10)` line means the
+  `DATABASE_URL` is wrong — the API panics on failure and never opens its listener, which surfaces
+  at the edge as `Application failed to respond`.
+- `/` returns 404 even when healthy; every route lives under `/api/v1`. Check
+  `/api/v1/health` instead.
+- **The map data is fetched from a release asset, not the repo.** `lagos.osm.pbf` is LFS-tracked,
+  and Railway clones without fetching LFS objects — a `COPY` from the build context would ship the
+  133-byte pointer, and the simulator would crash-loop on
+  `osmgraph: scan error: blobHeader size >= 64Kb`. The `prod` stage `ADD`s it from the
+  [`map-data` release](https://github.com/ize-302/beacon/releases/tag/map-data) instead, so the
+  build never depends on LFS. Replacing the file means uploading a new asset to that tag.
+- The 78MB PBF is parsed into an in-memory graph at simulator startup — slow cold starts and a
+  real memory footprint.
 
 ## API
 
