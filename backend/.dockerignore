@@ -1,0 +1,15 @@
+# secrets — never bake into an image
+.env
+.env.*
+!.env.example
+
+# build artefacts and local state
+tmp/
+*.log
+
+# the PBF comes from a release asset in the prod stage, and from the bind
+# mount in dev; keeping it out of the context saves uploading 78MB per build
+*.osm.pbf
+
+.git
+.gitignore

@@ -38,8 +38,12 @@ WORKDIR /app
 COPY --from=build /out/main /app/main
 COPY --from=build /out/simulator/main /app/simulator/main
 
-# the simulator opens this at a path relative to WORKDIR
-COPY --from=build /app/cmd/simulator/map_data /app/cmd/simulator/map_data
+# Pulled from a release asset rather than the repo: the file is LFS-tracked, and build
+# contexts that clone without fetching LFS objects (Railway) would ship the pointer text
+# instead of the PBF. The simulator opens this path relative to WORKDIR.
+ADD --chmod=644 \
+  https://github.com/ize-302/beacon/releases/download/map-data/lagos.osm.pbf \
+  /app/cmd/simulator/map_data/lagos.osm.pbf
 
 EXPOSE 8080
 
