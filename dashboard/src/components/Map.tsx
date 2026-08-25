@@ -1,7 +1,7 @@
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import type { GpsGpsResponse } from "~/client/api";
+import type { GpsResponse } from "~/client/api";
 import type { WsCoordinate } from "~/types";
 import policeCarUrl from "~/components/vehicles/police-car.svg?url";
 
@@ -12,7 +12,12 @@ const HISTORY_LAYER = "gps-history-line";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
-function makeMarkerEl(width: string, height: string, iconIndex: number, onClick?: () => void) {
+function makeMarkerEl(
+  width: string,
+  height: string,
+  iconIndex: number,
+  onClick?: () => void,
+) {
   const el = document.createElement("img");
   el.src = vehicleIcons[iconIndex];
   el.style.width = width;
@@ -23,7 +28,7 @@ function makeMarkerEl(width: string, height: string, iconIndex: number, onClick?
 }
 
 export default function DeclarativeMap(props: {
-  markers: GpsGpsResponse[];
+  markers: GpsResponse[];
   liveUpdate: WsCoordinate | null;
   onSelectGps: (id: number) => void;
   historyCoordinates: [number, number][] | null;
@@ -35,7 +40,14 @@ export default function DeclarativeMap(props: {
   const markerTimestamps = new Map<number, number>();
   const [mapReady, setMapReady] = createSignal(false);
 
-  function animateMarker(marker: mapboxgl.Marker, id: number, toLng: number, toLat: number, bearing: number, timestamp: number) {
+  function animateMarker(
+    marker: mapboxgl.Marker,
+    id: number,
+    toLng: number,
+    toLat: number,
+    bearing: number,
+    timestamp: number,
+  ) {
     const prev = markerAnimations.get(id);
     if (prev !== undefined) cancelAnimationFrame(prev);
 
@@ -85,12 +97,19 @@ export default function DeclarativeMap(props: {
 
     props.markers.forEach((gps) => {
       if (!gps.last_coordinate) return;
-      const { longitude, latitude } = gps.last_coordinate as Required<typeof gps.last_coordinate>;
+      const { longitude, latitude } = gps.last_coordinate as Required<
+        typeof gps.last_coordinate
+      >;
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
         `<p style="font-weight:600;font-size:13px;margin:0 0 2px">${gps.sn}</p><p style="font-size:12px;color:#666;margin:0">${gps.vehicle?.plate_number ?? ""}</p>`,
       );
       const marker = new mapboxgl.Marker({
-        element: makeMarkerEl("20px", "40px", (gps.id ?? 0) % vehicleIcons.length, () => props.onSelectGps(gps.id!)),
+        element: makeMarkerEl(
+          "20px",
+          "40px",
+          (gps.id ?? 0) % vehicleIcons.length,
+          () => props.onSelectGps(gps.id!),
+        ),
         rotationAlignment: "map",
       })
         .setLngLat([longitude, latitude])
@@ -114,7 +133,12 @@ export default function DeclarativeMap(props: {
         `<p style="font-weight:600;font-size:13px;margin:0 0 2px">${gps.sn}</p><p style="font-size:12px;color:#666;margin:0">${gps.vehicle?.plate_number ?? ""}</p>`,
       );
       marker = new mapboxgl.Marker({
-        element: makeMarkerEl("20px", "40px", (gps.id ?? 0) % vehicleIcons.length, () => props.onSelectGps(gps.id!)),
+        element: makeMarkerEl(
+          "20px",
+          "40px",
+          (gps.id ?? 0) % vehicleIcons.length,
+          () => props.onSelectGps(gps.id!),
+        ),
         rotationAlignment: "map",
       })
         .setLngLat([update.longitude, update.latitude])
@@ -123,7 +147,14 @@ export default function DeclarativeMap(props: {
       markerInstances.set(update.gps_id, marker);
     }
 
-    animateMarker(marker, update.gps_id, update.longitude, update.latitude, update.bearing, update.timestamp);
+    animateMarker(
+      marker,
+      update.gps_id,
+      update.longitude,
+      update.latitude,
+      update.bearing,
+      update.timestamp,
+    );
   });
 
   // Draw route when history coordinates change
@@ -134,14 +165,22 @@ export default function DeclarativeMap(props: {
     if (!map.getSource(HISTORY_SOURCE)) {
       map.addSource(HISTORY_SOURCE, {
         type: "geojson",
-        data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [] } },
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: { type: "LineString", coordinates: [] },
+        },
       });
       map.addLayer({
         id: HISTORY_LAYER,
         type: "line",
         source: HISTORY_SOURCE,
         layout: { "line-join": "round", "line-cap": "round" },
-        paint: { "line-color": "#3b82f6", "line-width": 3, "line-opacity": 0.8 },
+        paint: {
+          "line-color": "#3b82f6",
+          "line-width": 3,
+          "line-opacity": 0.8,
+        },
       });
     }
 
