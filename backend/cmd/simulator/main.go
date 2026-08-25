@@ -15,7 +15,7 @@ var baseURL string
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Println("no .env file found, using environment variables")
+		log.Println("no .env file found, using environment variables!")
 	}
 	baseURL = os.Getenv("API_BASE_URL")
 	if baseURL == "" {
