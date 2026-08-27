@@ -1,5 +1,5 @@
-// Package movementengine
-package movementengine
+// Package sim drives simulated vehicles along the road graph.
+package sim
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ize-302/beacon/backend/cmd/simulator/apis"
 	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
 	"github.com/paulmach/osm"
 
@@ -104,7 +103,7 @@ func pickRandomNode(adj map[int64][]int64) int64 {
 	return keys[rand.Intn(len(keys))]
 }
 
-func DriveVehicle(baseURL string, gps internalgps.GpsResponse, nodes map[int64]osm.Node, adj map[int64][]int64, ctx context.Context) {
+func driveVehicle(baseURL string, gps internalgps.GpsResponse, nodes map[int64]osm.Node, adj map[int64][]int64, ctx context.Context) {
 	var current int64
 	if gps.LastCoordinate != nil {
 		current = closestNode(nodes, gps.LastCoordinate.Latitude, gps.LastCoordinate.Longitude)
@@ -144,7 +143,7 @@ func DriveVehicle(baseURL string, gps internalgps.GpsResponse, nodes map[int64]o
 			if !ok {
 				continue
 			}
-			apis.SendGpsPosition(gpspoints.CreateGpsPoint{
+			sendGpsPosition(gpspoints.CreateGpsPoint{
 				GpsID:     gps.ID,
 				Latitude:  node.Lat,
 				Longitude: node.Lon,
@@ -170,13 +169,13 @@ func Run(baseURL string, nodes map[int64]osm.Node, adj map[int64][]int64, ctx co
 		mu.Unlock()
 
 		go func() {
-			DriveVehicle(baseURL, gps, nodes, adj, ctx)
+			driveVehicle(baseURL, gps, nodes, adj, ctx)
 		}()
 		log.Printf("simulator: started gps %d (%s)", gps.ID, gps.SN)
 	}
 
 	// initial gps devices load
-	gpsDevices, err := apis.FetchGpsDevices(baseURL)
+	gpsDevices, err := fetchGpsDevices(baseURL)
 	if err != nil {
 		log.Fatalf("failed to fetch GPS devices: %v", err)
 	}
@@ -187,7 +186,7 @@ func Run(baseURL string, nodes map[int64]osm.Node, adj map[int64][]int64, ctx co
 	// subscribe to SSE for instant notification of new GPS devices
 	go func() {
 		for {
-			err := apis.SubscribeToNewDevices(ctx, baseURL, startGps)
+			err := subscribeToNewDevices(ctx, baseURL, startGps)
 			if ctx.Err() != nil {
 				return
 			}
