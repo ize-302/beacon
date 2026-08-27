@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -15,62 +14,74 @@ import (
 	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
 )
 
-func fetchGpsDevices(baseURL string) ([]internalgps.GpsResponse, error) {
-	resp, err := http.Get(baseURL + "/api/v1/gps-devices")
+// poster is what the sender needs from the API. Tests substitute their own.
+type poster interface {
+	sendGpsPosition(ctx context.Context, p gpspoints.CreateGpsPoint) error
+}
+
+type apiClient struct {
+	baseURL string
+	http    *http.Client
+}
+
+func newAPIClient(baseURL string) *apiClient {
+	return &apiClient{
+		baseURL: baseURL,
+		http:    &http.Client{Timeout: 5 * time.Second},
+	}
+}
+
+func (c *apiClient) fetchGpsDevices() ([]internalgps.GpsResponse, error) {
+	resp, err := c.http.Get(c.baseURL + "/api/v1/gps-devices")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("status: ", resp.Status)
-
-	resBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetch gps devices: unexpected status %s", resp.Status)
 	}
 
 	var envelope struct {
 		Data []internalgps.GpsResponse `json:"data"`
 	}
-	if err = json.Unmarshal(resBody, &envelope); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		return nil, err
 	}
 	return envelope.Data, nil
 }
 
-func sendGpsPosition(payload gpspoints.CreateGpsPoint, baseURL string) {
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		panic(err)
-	}
-	bodyReader := bytes.NewReader(jsonData)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/gps-points", bodyReader)
-	if err != nil {
-		panic(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("GpsID: %d [Lat: %f Lng %f]\n", payload.GpsID, payload.Longitude, payload.Latitude)
-
-	defer resp.Body.Close()
-}
-
-func subscribeToNewDevices(ctx context.Context, baseURL string, onNew func(internalgps.GpsResponse)) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/api/v1/gps-devices/events", nil)
+func (c *apiClient) sendGpsPosition(ctx context.Context, p gpspoints.CreateGpsPoint) error {
+	body, err := json.Marshal(p)
 	if err != nil {
 		return err
 	}
-	resp, err := http.DefaultClient.Do(req)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/gps-points", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return fmt.Errorf("send gps point: unexpected status %s", resp.Status)
+	}
+	return nil
+}
+
+func (c *apiClient) subscribeToNewDevices(ctx context.Context, onNew func(internalgps.GpsResponse)) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/gps-devices/events", nil)
+	if err != nil {
+		return err
+	}
+	// The SSE stream is open-ended, so it must not inherit the client timeout.
+	resp, err := (&http.Client{}).Do(req)
 	if err != nil {
 		return err
 	}

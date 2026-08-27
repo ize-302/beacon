@@ -4,114 +4,143 @@ package sim
 import (
 	"context"
 	"log"
-	"math"
 	"math/rand"
 	"sync"
 	"time"
 
-	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
-	"github.com/paulmach/osm"
-
 	internalgps "github.com/ize-302/beacon/backend/internal/gps"
+	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
 )
 
-// Breadth-First Search: explores the graph layer by layer by finding the
-// shortedt possible path to a destination from a given current position. It also makes it
-// impossible to revisit a node because BFS marks nodes visited and never
-// includes duplicates in the path
-// Summary on how it works:
-// 1. Finds the shortest path from current position to that destination
-// 2. Walks that path one node per tick
-// 3. When it arrives, picks a new random destination and repeats
-// Learn more about BFS algorithm here: https://www.youtube.com/watch?v=HZ5YTanv5QE
-func bfsPath(adj map[int64][]int64, start, goal int64) []int64 {
-	if start == goal {
-		return []int64{start}
+// Config tunes the simulation. Zero values fall back to the defaults below.
+type Config struct {
+	BaseURL string
+	Graph   *Graph
+
+	// Planners caps concurrent route searches. Peak planning memory is roughly
+	// Planners * 61MB, so raise it for throughput and lower it for a smaller
+	// footprint. Defaults to runtime.NumCPU().
+	Planners int
+
+	// SendQueue is how many positions may be buffered for the API before new
+	// ones are dropped. Defaults to 1024.
+	SendQueue int
+
+	// MinInterval/MaxInterval bound how long a vehicle waits between hops. Each
+	// vehicle picks a fixed interval in this range when it is admitted.
+	MinInterval time.Duration
+	MaxInterval time.Duration
+
+	// Seed makes vehicle route choices reproducible. Defaults to the clock.
+	Seed int64
+}
+
+func (c *Config) applyDefaults() {
+	if c.SendQueue <= 0 {
+		c.SendQueue = 1024
 	}
-	prev := map[int64]int64{start: -1}
-	queue := []int64{start}
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		for _, nb := range adj[cur] {
-			if _, visited := prev[nb]; visited {
-				continue
+	if c.MinInterval <= 0 {
+		c.MinInterval = 1 * time.Second
+	}
+	if c.MaxInterval < c.MinInterval {
+		c.MaxInterval = 9 * time.Second
+	}
+	if c.Seed == 0 {
+		c.Seed = time.Now().UnixNano()
+	}
+}
+
+type world struct {
+	cfg     Config
+	graph   *Graph
+	planner *planner
+	sender  *sender
+	client  *apiClient
+
+	mu      sync.Mutex
+	running map[int]struct{}
+}
+
+// Run drives every registered GPS device until ctx is cancelled.
+func Run(ctx context.Context, cfg Config) error {
+	cfg.applyDefaults()
+
+	client := newAPIClient(cfg.BaseURL)
+	w := &world{
+		cfg:     cfg,
+		graph:   cfg.Graph,
+		planner: newPlanner(cfg.Graph, cfg.Planners),
+		sender:  newSender(client, cfg.SendQueue),
+		client:  client,
+		running: make(map[int]struct{}),
+	}
+
+	go w.sender.run(ctx)
+
+	// initial gps devices load
+	devices, err := client.fetchGpsDevices()
+	if err != nil {
+		return err
+	}
+	for _, gps := range devices {
+		w.startGps(ctx, gps)
+	}
+
+	// subscribe to SSE for instant notification of new GPS devices
+	go func() {
+		for {
+			err := client.subscribeToNewDevices(ctx, func(gps internalgps.GpsResponse) {
+				w.startGps(ctx, gps)
+			})
+			if ctx.Err() != nil {
+				return
 			}
-			prev[nb] = cur
-			if nb == goal {
-				path := []int64{}
-				for n := goal; n != -1; n = prev[n] {
-					path = append([]int64{n}, path...)
-				}
-				return path
+			log.Printf("simulator: SSE disconnected (%v), reconnecting...", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Second):
 			}
-			queue = append(queue, nb)
 		}
+	}()
+
+	<-ctx.Done()
+	return nil
+}
+
+// startGps checks the map before spawning so existing vehicles are untouched.
+func (w *world) startGps(ctx context.Context, gps internalgps.GpsResponse) {
+	w.mu.Lock()
+	if _, ok := w.running[gps.ID]; ok {
+		w.mu.Unlock()
+		return
 	}
-	return nil // no path was found
+	w.running[gps.ID] = struct{}{}
+	w.mu.Unlock()
+
+	go w.driveVehicle(ctx, gps)
+	log.Printf("simulator: started gps %d (%s)", gps.ID, gps.SN)
 }
 
-// Using haversine bearing formula to compute gps bearing from one gps coordinate to another
-// Formula:
-// Δlng = lng2 − lng1
-// x = sin(Δlng)·cos(lat2)
-// y = cos(lat1)·sin(lat2) − sin(lat1)·cos(lat2)·cos(Δlng)
-// bearing = atan2(x, y)           // radians, −π to +π
-// degrees = (bearing·180/π + 360) % 360   // normalize to 0–360
-// result: 0 = North, 90 = East, 180 = South, 270 = West.
-func computeBearing(from, to osm.Node) float64 {
-	lat1 := from.Lat * math.Pi / 180
-	lng1 := from.Lon * math.Pi / 180
-	lat2 := to.Lat * math.Pi / 180
-	lng2 := to.Lon * math.Pi / 180
+func (w *world) driveVehicle(ctx context.Context, gps internalgps.GpsResponse) {
+	// Seeded per vehicle so a given seed reproduces the same route choices, and
+	// so vehicles do not contend on the locked global source.
+	rng := rand.New(rand.NewSource(w.cfg.Seed + int64(gps.ID)))
 
-	dLng := lng2 - lng1 // diff in longitue
-
-	x := math.Sin(dLng) * math.Cos(lat2) // compute east-west
-	y := math.Cos(lat1)*math.Sin(lat2) -
-		math.Sin(lat1)*math.Cos(lat2)*math.Cos(dLng) // compute north-south
-
-	bearing := math.Atan2(x, y)
-
-	// Convert radians to degrees
-	degrees := bearing * 180 / math.Pi
-	// Normalize to 0-360
-	degrees = math.Mod(degrees+360, 360)
-	return degrees
-}
-
-func closestNode(nodes map[int64]osm.Node, lat, lng float64) int64 {
-	var closest int64
-	minDist := math.MaxFloat64
-	for id, n := range nodes {
-		latDiff := n.Lat - lat
-		lngDiff := n.Lon - lng
-		d := (latDiff * latDiff) + (lngDiff * lngDiff)
-		if d < minDist {
-			minDist = d
-			closest = id
-		}
-	}
-	return closest
-}
-
-func pickRandomNode(adj map[int64][]int64) int64 {
-	keys := make([]int64, 0, len(adj))
-	for k := range adj {
-		keys = append(keys, k)
-	}
-	return keys[rand.Intn(len(keys))]
-}
-
-func driveVehicle(baseURL string, gps internalgps.GpsResponse, nodes map[int64]osm.Node, adj map[int64][]int64, ctx context.Context) {
 	var current int64
 	if gps.LastCoordinate != nil {
-		current = closestNode(nodes, gps.LastCoordinate.Latitude, gps.LastCoordinate.Longitude)
+		current = closestNode(w.graph.Nodes, gps.LastCoordinate.Latitude, gps.LastCoordinate.Longitude)
 	} else {
-		current = pickRandomNode(adj)
+		current = w.graph.RandomNode(rng)
 	}
-	randomSpeed := rand.Intn(9) + 1
-	t := time.NewTicker(time.Duration(randomSpeed) * time.Second)
+
+	// int64 throughout: a 8s spread is 8e9 nanoseconds, which overflows a 32-bit
+	// int and would make rng.Intn panic on a 32-bit build.
+	interval := w.cfg.MinInterval
+	if spread := int64(w.cfg.MaxInterval - w.cfg.MinInterval); spread > 0 {
+		interval += time.Duration(rng.Int63n(spread + 1))
+	}
+	t := time.NewTicker(interval)
 	defer t.Stop()
 
 	var path []int64
@@ -123,11 +152,15 @@ func driveVehicle(baseURL string, gps internalgps.GpsResponse, nodes map[int64]o
 		case <-t.C:
 			// determine new path when current one is exhausted
 			for len(path) == 0 {
-				dest := pickRandomNode(adj)
+				if ctx.Err() != nil {
+					return
+				}
+				dest := w.graph.RandomNode(rng)
 				if dest == current {
 					continue
 				}
-				path = bfsPath(adj, current, dest)
+				// Route searches are capped globally; this may wait for a slot.
+				path = w.planner.plan(ctx, current, dest)
 				if len(path) > 1 {
 					path = path[1:] // drop current node
 				} else {
@@ -135,65 +168,21 @@ func driveVehicle(baseURL string, gps internalgps.GpsResponse, nodes map[int64]o
 				}
 			}
 
-			prevNode := nodes[current]
+			prevNode := w.graph.Nodes[current]
 			current = path[0]
 			path = path[1:]
 
-			node, ok := nodes[current]
+			node, ok := w.graph.Nodes[current]
 			if !ok {
 				continue
 			}
-			sendGpsPosition(gpspoints.CreateGpsPoint{
+			w.sender.enqueue(gpspoints.CreateGpsPoint{
 				GpsID:     gps.ID,
 				Latitude:  node.Lat,
 				Longitude: node.Lon,
 				Bearing:   computeBearing(prevNode, node),
 				Timestamp: time.Now().UnixMilli(),
-			}, baseURL)
+			})
 		}
 	}
-}
-
-func Run(baseURL string, nodes map[int64]osm.Node, adj map[int64][]int64, ctx context.Context) {
-	var mu sync.Mutex
-	running := make(map[int]struct{})
-
-	// first checks the map before spawning so existing vehicles are untouched
-	startGps := func(gps internalgps.GpsResponse) {
-		mu.Lock()
-		if _, ok := running[gps.ID]; ok {
-			mu.Unlock()
-			return
-		}
-		running[gps.ID] = struct{}{}
-		mu.Unlock()
-
-		go func() {
-			driveVehicle(baseURL, gps, nodes, adj, ctx)
-		}()
-		log.Printf("simulator: started gps %d (%s)", gps.ID, gps.SN)
-	}
-
-	// initial gps devices load
-	gpsDevices, err := fetchGpsDevices(baseURL)
-	if err != nil {
-		log.Fatalf("failed to fetch GPS devices: %v", err)
-	}
-	for _, gps := range gpsDevices {
-		startGps(gps)
-	}
-
-	// subscribe to SSE for instant notification of new GPS devices
-	go func() {
-		for {
-			err := subscribeToNewDevices(ctx, baseURL, startGps)
-			if ctx.Err() != nil {
-				return
-			}
-			log.Printf("simulator: SSE disconnected (%v), reconnecting...", err)
-			time.Sleep(2 * time.Second)
-		}
-	}()
-
-	<-ctx.Done()
 }
