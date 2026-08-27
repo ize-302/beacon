@@ -33,6 +33,18 @@ func (h *GpsPointHandler) RegisterRoutes() {
 	})
 
 	huma.Register(gpsPointGroup, huma.Operation{
+		OperationID:   "create-gps-points-batch",
+		Path:          "/batch",
+		Method:        http.MethodPost,
+		Summary:       "Record a batch of GPS points",
+		Description:   "Writes every position in one statement. Preferred over the single-point endpoint for anything posting at rate.",
+		DefaultStatus: http.StatusCreated,
+		Tags:          []string{"GPS Points"},
+	}, func(ctx context.Context, input *CreateGpsPointsBatchRequest) (*common.BaseResponseBody[BatchInsertResult], error) {
+		return h.GpsPointService.SaveGpsPoints(input)
+	})
+
+	huma.Register(gpsPointGroup, huma.Operation{
 		OperationID:   "get-gps-points",
 		Path:          "",
 		Method:        http.MethodGet,

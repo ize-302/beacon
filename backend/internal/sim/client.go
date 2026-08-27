@@ -16,7 +16,7 @@ import (
 
 // poster is what the sender needs from the API. Tests substitute their own.
 type poster interface {
-	sendGpsPosition(ctx context.Context, p gpspoints.CreateGpsPoint) error
+	sendGpsPoints(ctx context.Context, points []gpspoints.CreateGpsPoint) error
 }
 
 type apiClient struct {
@@ -51,13 +51,19 @@ func (c *apiClient) fetchGpsDevices() ([]internalgps.GpsResponse, error) {
 	return envelope.Data, nil
 }
 
-func (c *apiClient) sendGpsPosition(ctx context.Context, p gpspoints.CreateGpsPoint) error {
-	body, err := json.Marshal(p)
+// sendGpsPoints posts a whole batch in one request. The slice is marshalled
+// before this returns, so the caller is free to reuse its backing array.
+func (c *apiClient) sendGpsPoints(ctx context.Context, points []gpspoints.CreateGpsPoint) error {
+	if len(points) == 0 {
+		return nil
+	}
+
+	body, err := json.Marshal(gpspoints.CreateGpsPointsBatch{Points: points})
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/gps-points", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/gps-points/batch", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -70,7 +76,7 @@ func (c *apiClient) sendGpsPosition(ctx context.Context, p gpspoints.CreateGpsPo
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return fmt.Errorf("send gps point: unexpected status %s", resp.Status)
+		return fmt.Errorf("send %d gps points: unexpected status %s", len(points), resp.Status)
 	}
 	return nil
 }

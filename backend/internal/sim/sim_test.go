@@ -34,13 +34,14 @@ func lineGraph(n int) *Graph {
 }
 
 type capturingPoster struct {
-	mu     sync.Mutex
-	points []gpspoints.CreateGpsPoint
-	err    error
-	delay  time.Duration
+	mu         sync.Mutex
+	points     []gpspoints.CreateGpsPoint
+	batchSizes []int
+	err        error
+	delay      time.Duration
 }
 
-func (c *capturingPoster) sendGpsPosition(ctx context.Context, p gpspoints.CreateGpsPoint) error {
+func (c *capturingPoster) sendGpsPoints(ctx context.Context, batch []gpspoints.CreateGpsPoint) error {
 	if c.delay > 0 {
 		select {
 		case <-time.After(c.delay):
@@ -53,7 +54,9 @@ func (c *capturingPoster) sendGpsPosition(ctx context.Context, p gpspoints.Creat
 	if c.err != nil {
 		return c.err
 	}
-	c.points = append(c.points, p)
+	// Copy: the sender reuses the batch's backing array after we return.
+	c.points = append(c.points, batch...)
+	c.batchSizes = append(c.batchSizes, len(batch))
 	return nil
 }
 
@@ -61,6 +64,12 @@ func (c *capturingPoster) count() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return len(c.points)
+}
+
+func (c *capturingPoster) batches() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.batchSizes)
 }
 
 // The planner must run searches in parallel but never more than its worker
@@ -141,7 +150,7 @@ func TestPlannerRespectsCancellation(t *testing.T) {
 // A vehicle must not stall because the API is slow or unreachable.
 func TestSenderNeverBlocksVehicle(t *testing.T) {
 	slow := &capturingPoster{delay: time.Hour}
-	s := newSender(slow, 4)
+	s := newSender(slow, 4, 20*time.Millisecond, 500)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -162,7 +171,7 @@ func TestSenderNeverBlocksVehicle(t *testing.T) {
 // A failing API must not kill the sender: it used to panic.
 func TestSenderSurvivesPostFailure(t *testing.T) {
 	failing := &capturingPoster{err: context.DeadlineExceeded}
-	s := newSender(failing, 16)
+	s := newSender(failing, 16, 20*time.Millisecond, 500)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -173,18 +182,77 @@ func TestSenderSurvivesPostFailure(t *testing.T) {
 	}
 
 	deadline := time.Now().Add(2 * time.Second)
-	for s.dropped.Load() < 5 && time.Now().Before(deadline) {
+	for s.failed.Load() < 5 && time.Now().Before(deadline) {
 		time.Sleep(5 * time.Millisecond)
 	}
-	if got := s.dropped.Load(); got < 5 {
+	if got := s.failed.Load(); got < 5 {
 		t.Fatalf("sender stopped after a failure: only %d handled", got)
 	}
 
 	// Still alive and draining.
 	s.enqueue(gpspoints.CreateGpsPoint{GpsID: 1, Timestamp: 99})
-	time.Sleep(100 * time.Millisecond)
-	if s.dropped.Load() < 6 {
+	time.Sleep(200 * time.Millisecond)
+	if s.failed.Load() < 6 {
 		t.Fatal("sender did not process work after an error")
+	}
+}
+
+// Many positions must collapse into few requests — that is the whole point of C.
+func TestSenderBatchesByInterval(t *testing.T) {
+	capture := &capturingPoster{}
+	s := newSender(capture, 4096, 50*time.Millisecond, 500)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go s.run(ctx)
+
+	const n = 300
+	for i := range n {
+		s.enqueue(gpspoints.CreateGpsPoint{GpsID: 1, Timestamp: int64(i)})
+	}
+
+	deadline := time.Now().Add(3 * time.Second)
+	for capture.count() < n && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if capture.count() != n {
+		t.Fatalf("delivered %d points, want %d", capture.count(), n)
+	}
+	// One request per interval, not one per point.
+	if b := capture.batches(); b >= n/10 {
+		t.Fatalf("%d points went out in %d batches; batching is not collapsing requests", n, b)
+	}
+
+	// Order must survive batching.
+	capture.mu.Lock()
+	defer capture.mu.Unlock()
+	for i, p := range capture.points {
+		if p.Timestamp != int64(i) {
+			t.Fatalf("point %d out of order: timestamp %d", i, p.Timestamp)
+		}
+	}
+}
+
+// A burst larger than BatchSize must flush early rather than wait for the tick.
+func TestSenderFlushesOnFullBatch(t *testing.T) {
+	capture := &capturingPoster{}
+	// Interval long enough that a tick-driven flush cannot explain the result.
+	s := newSender(capture, 4096, 30*time.Second, 25)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go s.run(ctx)
+
+	for i := range 100 {
+		s.enqueue(gpspoints.CreateGpsPoint{GpsID: 1, Timestamp: int64(i)})
+	}
+
+	deadline := time.Now().Add(3 * time.Second)
+	for capture.count() < 100 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if capture.count() < 100 {
+		t.Fatalf("size-triggered flush did not happen: only %d delivered", capture.count())
 	}
 }
 
@@ -207,7 +275,7 @@ func TestVehicleEmitsPositions(t *testing.T) {
 		cfg:     cfg,
 		graph:   g,
 		planner: newPlanner(g, 2),
-		sender:  newSender(capture, cfg.SendQueue),
+		sender:  newSender(capture, cfg.SendQueue, cfg.BatchInterval, cfg.BatchSize),
 		running: make(map[int]struct{}),
 	}
 

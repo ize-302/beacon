@@ -30,6 +30,25 @@ func (s *GpsPointService) SaveGpsPoint(input *CreateGpsPointRequest) (*common.Ba
 	return resp, nil
 }
 
+func (s *GpsPointService) SaveGpsPoints(input *CreateGpsPointsBatchRequest) (*common.BaseResponseBody[BatchInsertResult], error) {
+	resp := &common.BaseResponseBody[BatchInsertResult]{}
+	inserted, err := s.Repository.SaveGpsPointsRepo(input.Body.Points)
+	if err != nil {
+		return nil, err
+	}
+	if s.Hub != nil {
+		// One message per point, so the dashboard's wire format is unchanged.
+		// Step D replaces this with a single frame per batch.
+		for _, p := range input.Body.Points {
+			s.Hub.Broadcast(p)
+		}
+	}
+	resp.Body.Data = BatchInsertResult{Inserted: inserted}
+	resp.Body.Message = "GPS points recorded successfully"
+	resp.Body.Status = true
+	return resp, nil
+}
+
 func (s *GpsPointService) FetchGpsPoints() (*common.BaseResponseBody[[]GpsPointResponse], error) {
 	resp := &common.BaseResponseBody[[]GpsPointResponse]{}
 	gpspoints, err := s.Repository.FetchGpsPointsRepo()

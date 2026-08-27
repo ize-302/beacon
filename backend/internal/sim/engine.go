@@ -26,6 +26,14 @@ type Config struct {
 	// ones are dropped. Defaults to 1024.
 	SendQueue int
 
+	// BatchInterval is how often pending positions are posted. Request rate is
+	// fixed by this rather than by fleet size. Defaults to 200ms.
+	BatchInterval time.Duration
+
+	// BatchSize forces an early flush once this many positions are pending, so a
+	// burst does not wait for the interval. Defaults to 500.
+	BatchSize int
+
 	// MinInterval/MaxInterval bound how long a vehicle waits between hops. Each
 	// vehicle picks a fixed interval in this range when it is admitted.
 	MinInterval time.Duration
@@ -38,6 +46,12 @@ type Config struct {
 func (c *Config) applyDefaults() {
 	if c.SendQueue <= 0 {
 		c.SendQueue = 1024
+	}
+	if c.BatchInterval <= 0 {
+		c.BatchInterval = 200 * time.Millisecond
+	}
+	if c.BatchSize <= 0 {
+		c.BatchSize = 500
 	}
 	if c.MinInterval <= 0 {
 		c.MinInterval = 1 * time.Second
@@ -70,7 +84,7 @@ func Run(ctx context.Context, cfg Config) error {
 		cfg:     cfg,
 		graph:   cfg.Graph,
 		planner: newPlanner(cfg.Graph, cfg.Planners),
-		sender:  newSender(client, cfg.SendQueue),
+		sender:  newSender(client, cfg.SendQueue, cfg.BatchInterval, cfg.BatchSize),
 		client:  client,
 		running: make(map[int]struct{}),
 	}

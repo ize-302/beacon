@@ -15,6 +15,18 @@ type CreateGpsPointRequest struct {
 	Body *CreateGpsPoint
 }
 
+type CreateGpsPointsBatch struct {
+	Points []CreateGpsPoint `json:"points" minItems:"1" maxItems:"5000" doc:"Positions to record, oldest first"`
+}
+
+type CreateGpsPointsBatchRequest struct {
+	Body *CreateGpsPointsBatch
+}
+
+type BatchInsertResult struct {
+	Inserted int `json:"inserted"`
+}
+
 type GpsPointResponse struct {
 	ID        int       `json:"id"`
 	GpsID     int       `json:"gps_id"`
