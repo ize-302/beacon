@@ -52,7 +52,7 @@ flowchart LR
 Copy `backend/.env.example` to `backend/.env`:
 
 ```env
-DB_HOST=beacon_postgres_db
+DB_HOST=beacon_db
 DB_PORT=5432
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
@@ -135,7 +135,7 @@ The simulator resolves the OSM file relative to the working directory, so run it
 | Service   | In Docker                | From the host    |
 | --------- | ------------------------ | ---------------- |
 | API       | `beacon_backend:8080`    | `localhost:8080` |
-| Postgres  | `beacon_postgres_db:5432`| `localhost:5433` |
+| Postgres  | `beacon_db:5432`         | `localhost:5433` |
 | Dashboard | not containerised        | `localhost:5173` |
 
 Postgres is published on **5433** to avoid clashing with a local Postgres on 5432.
