@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	internalgps "github.com/ize-302/beacon/backend/internal/gps"
 	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
+	"github.com/ize-302/beacon/backend/internal/vehicles"
 	"github.com/paulmach/osm"
 )
 
@@ -158,7 +158,7 @@ func TestSenderNeverBlocksVehicle(t *testing.T) {
 
 	start := time.Now()
 	for i := range 1000 {
-		s.enqueue(gpspoints.CreateGpsPoint{GpsID: 1, Timestamp: int64(i)})
+		s.enqueue(gpspoints.CreateGpsPoint{VehicleID: 1, Timestamp: int64(i)})
 	}
 	if elapsed := time.Since(start); elapsed > time.Second {
 		t.Fatalf("enqueue blocked: 1000 positions took %v", elapsed)
@@ -178,7 +178,7 @@ func TestSenderSurvivesPostFailure(t *testing.T) {
 	go s.run(ctx)
 
 	for i := range 5 {
-		s.enqueue(gpspoints.CreateGpsPoint{GpsID: 1, Timestamp: int64(i)})
+		s.enqueue(gpspoints.CreateGpsPoint{VehicleID: 1, Timestamp: int64(i)})
 	}
 
 	deadline := time.Now().Add(2 * time.Second)
@@ -190,7 +190,7 @@ func TestSenderSurvivesPostFailure(t *testing.T) {
 	}
 
 	// Still alive and draining.
-	s.enqueue(gpspoints.CreateGpsPoint{GpsID: 1, Timestamp: 99})
+	s.enqueue(gpspoints.CreateGpsPoint{VehicleID: 1, Timestamp: 99})
 	time.Sleep(200 * time.Millisecond)
 	if s.failed.Load() < 6 {
 		t.Fatal("sender did not process work after an error")
@@ -208,7 +208,7 @@ func TestSenderBatchesByInterval(t *testing.T) {
 
 	const n = 300
 	for i := range n {
-		s.enqueue(gpspoints.CreateGpsPoint{GpsID: 1, Timestamp: int64(i)})
+		s.enqueue(gpspoints.CreateGpsPoint{VehicleID: 1, Timestamp: int64(i)})
 	}
 
 	deadline := time.Now().Add(3 * time.Second)
@@ -244,7 +244,7 @@ func TestSenderFlushesOnFullBatch(t *testing.T) {
 	go s.run(ctx)
 
 	for i := range 100 {
-		s.enqueue(gpspoints.CreateGpsPoint{GpsID: 1, Timestamp: int64(i)})
+		s.enqueue(gpspoints.CreateGpsPoint{VehicleID: 1, Timestamp: int64(i)})
 	}
 
 	deadline := time.Now().Add(3 * time.Second)
@@ -283,7 +283,7 @@ func TestVehicleEmitsPositions(t *testing.T) {
 	defer cancel()
 	go w.sender.run(ctx)
 
-	go w.driveVehicle(ctx, internalgps.GpsResponse{ID: 7, SN: "TEST-7"})
+	go w.driveVehicle(ctx, vehicles.VehicleResponse{ID: 7, PlateNumber: "TEST-7"})
 
 	deadline := time.Now().Add(5 * time.Second)
 	for capture.count() < 10 && time.Now().Before(deadline) {
@@ -296,8 +296,8 @@ func TestVehicleEmitsPositions(t *testing.T) {
 	capture.mu.Lock()
 	defer capture.mu.Unlock()
 	for i, p := range capture.points {
-		if p.GpsID != 7 {
-			t.Fatalf("point %d has GpsID %d, want 7", i, p.GpsID)
+		if p.VehicleID != 7 {
+			t.Fatalf("point %d has VehicleID %d, want 7", i, p.VehicleID)
 		}
 		if p.Latitude == 0 || p.Longitude == 0 {
 			t.Fatalf("point %d has zero coordinates", i)

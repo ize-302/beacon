@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	internalgps "github.com/ize-302/beacon/backend/internal/gps"
 	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
+	"github.com/ize-302/beacon/backend/internal/vehicles"
 )
 
 // Config tunes the simulation. Zero values fall back to the defaults below.
@@ -75,7 +75,7 @@ type world struct {
 	running map[int]struct{}
 }
 
-// Run drives every registered GPS device until ctx is cancelled.
+// Run drives every registered vehicle until ctx is cancelled.
 func Run(ctx context.Context, cfg Config) error {
 	cfg.applyDefaults()
 
@@ -91,20 +91,20 @@ func Run(ctx context.Context, cfg Config) error {
 
 	go w.sender.run(ctx)
 
-	// initial gps devices load
-	devices, err := client.fetchGpsDevices()
+	// initial vehicle load
+	known, err := client.fetchVehicles()
 	if err != nil {
 		return err
 	}
-	for _, gps := range devices {
-		w.startGps(ctx, gps)
+	for _, v := range known {
+		w.startVehicle(ctx, v)
 	}
 
-	// subscribe to SSE for instant notification of new GPS devices
+	// subscribe to SSE for instant notification of new vehicles
 	go func() {
 		for {
-			err := client.subscribeToNewDevices(ctx, func(gps internalgps.GpsResponse) {
-				w.startGps(ctx, gps)
+			err := client.subscribeToNewVehicles(ctx, func(v vehicles.VehicleResponse) {
+				w.startVehicle(ctx, v)
 			})
 			if ctx.Err() != nil {
 				return
@@ -122,28 +122,28 @@ func Run(ctx context.Context, cfg Config) error {
 	return nil
 }
 
-// startGps checks the map before spawning so existing vehicles are untouched.
-func (w *world) startGps(ctx context.Context, gps internalgps.GpsResponse) {
+// startVehicle checks the map before spawning so existing vehicles are untouched.
+func (w *world) startVehicle(ctx context.Context, v vehicles.VehicleResponse) {
 	w.mu.Lock()
-	if _, ok := w.running[gps.ID]; ok {
+	if _, ok := w.running[v.ID]; ok {
 		w.mu.Unlock()
 		return
 	}
-	w.running[gps.ID] = struct{}{}
+	w.running[v.ID] = struct{}{}
 	w.mu.Unlock()
 
-	go w.driveVehicle(ctx, gps)
-	log.Printf("simulator: started gps %d (%s)", gps.ID, gps.SN)
+	go w.driveVehicle(ctx, v)
+	log.Printf("simulator: started vehicle %d (%s)", v.ID, v.PlateNumber)
 }
 
-func (w *world) driveVehicle(ctx context.Context, gps internalgps.GpsResponse) {
+func (w *world) driveVehicle(ctx context.Context, v vehicles.VehicleResponse) {
 	// Seeded per vehicle so a given seed reproduces the same route choices, and
 	// so vehicles do not contend on the locked global source.
-	rng := rand.New(rand.NewSource(w.cfg.Seed + int64(gps.ID)))
+	rng := rand.New(rand.NewSource(w.cfg.Seed + int64(v.ID)))
 
 	var current int64
-	if gps.LastCoordinate != nil {
-		current = closestNode(w.graph.Nodes, gps.LastCoordinate.Latitude, gps.LastCoordinate.Longitude)
+	if v.LastCoordinate != nil {
+		current = closestNode(w.graph.Nodes, v.LastCoordinate.Latitude, v.LastCoordinate.Longitude)
 	} else {
 		current = w.graph.RandomNode(rng)
 	}
@@ -191,7 +191,7 @@ func (w *world) driveVehicle(ctx context.Context, gps internalgps.GpsResponse) {
 				continue
 			}
 			w.sender.enqueue(gpspoints.CreateGpsPoint{
-				GpsID:     gps.ID,
+				VehicleID: v.ID,
 				Latitude:  node.Lat,
 				Longitude: node.Lon,
 				Bearing:   computeBearing(prevNode, node),

@@ -26,6 +26,7 @@ func (VehicleType) Schema(r huma.Registry) *huma.Schema {
 type Vehicle struct {
 	ID          int
 	PlateNumber string
+	DeviceSN    string
 	CreatedAt   time.Time
 	VehicleType VehicleType
 }

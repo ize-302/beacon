@@ -10,7 +10,7 @@ import (
 )
 
 type GpsPointHandler struct {
-	APIGroup       *huma.Group
+	APIGroup        *huma.Group
 	GpsPointService *GpsPointService
 }
 

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	internalgps "github.com/ize-302/beacon/backend/internal/gps"
 	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
+	"github.com/ize-302/beacon/backend/internal/vehicles"
 )
 
 // poster is what the sender needs from the API. Tests substitute their own.
@@ -31,19 +31,19 @@ func newAPIClient(baseURL string) *apiClient {
 	}
 }
 
-func (c *apiClient) fetchGpsDevices() ([]internalgps.GpsResponse, error) {
-	resp, err := c.http.Get(c.baseURL + "/api/v1/gps-devices")
+func (c *apiClient) fetchVehicles() ([]vehicles.VehicleResponse, error) {
+	resp, err := c.http.Get(c.baseURL + "/api/v1/vehicles")
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch gps devices: unexpected status %s", resp.Status)
+		return nil, fmt.Errorf("fetch vehicles: unexpected status %s", resp.Status)
 	}
 
 	var envelope struct {
-		Data []internalgps.GpsResponse `json:"data"`
+		Data []vehicles.VehicleResponse `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		return nil, err
@@ -81,8 +81,8 @@ func (c *apiClient) sendGpsPoints(ctx context.Context, points []gpspoints.Create
 	return nil
 }
 
-func (c *apiClient) subscribeToNewDevices(ctx context.Context, onNew func(internalgps.GpsResponse)) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/gps-devices/events", nil)
+func (c *apiClient) subscribeToNewVehicles(ctx context.Context, onNew func(vehicles.VehicleResponse)) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/vehicles/events", nil)
 	if err != nil {
 		return err
 	}
@@ -100,11 +100,11 @@ func (c *apiClient) subscribeToNewDevices(ctx context.Context, onNew func(intern
 			continue
 		}
 		data := strings.TrimPrefix(line, "data: ")
-		var gps internalgps.GpsResponse
-		if err := json.Unmarshal([]byte(data), &gps); err != nil {
+		var v vehicles.VehicleResponse
+		if err := json.Unmarshal([]byte(data), &v); err != nil {
 			continue
 		}
-		onNew(gps)
+		onNew(v)
 	}
 	return scanner.Err()
 }

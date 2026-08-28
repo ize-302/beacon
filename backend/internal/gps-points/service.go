@@ -3,7 +3,7 @@ package gpspoints
 import "github.com/ize-302/beacon/backend/internal/common"
 
 type Broadcaster interface {
-	Broadcast(CreateGpsPoint)
+	Broadcast(PositionFrame)
 }
 
 type GpsPointService struct {
@@ -22,7 +22,7 @@ func (s *GpsPointService) SaveGpsPoint(input *CreateGpsPointRequest) (*common.Ba
 		return nil, err
 	}
 	if s.Hub != nil {
-		s.Hub.Broadcast(*input.Body)
+		s.Hub.Broadcast(NewPositionFrame([]CreateGpsPoint{*input.Body}))
 	}
 	resp.Body.Data = *gpspoint
 	resp.Body.Message = "GPS point recorded successfully"
@@ -37,11 +37,8 @@ func (s *GpsPointService) SaveGpsPoints(input *CreateGpsPointsBatchRequest) (*co
 		return nil, err
 	}
 	if s.Hub != nil {
-		// One message per point, so the dashboard's wire format is unchanged.
-		// Step D replaces this with a single frame per batch.
-		for _, p := range input.Body.Points {
-			s.Hub.Broadcast(p)
-		}
+		// One frame for the whole batch, not one message per point.
+		s.Hub.Broadcast(NewPositionFrame(input.Body.Points))
 	}
 	resp.Body.Data = BatchInsertResult{Inserted: inserted}
 	resp.Body.Message = "GPS points recorded successfully"

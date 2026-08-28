@@ -7,23 +7,29 @@ import {
 } from "solid-js";
 import DeclarativeMap from "~/components/Map";
 import AddPanel from "~/components/AddPanel";
-import { useGetGpsDevices } from "~/queries/use-get-gps-devices";
-import { useGetGpsHistory } from "~/queries/use-get-gps-history";
-import type { WsCoordinate } from "~/types";
+import { useGetVehicles } from "~/queries/use-get-vehicles";
+import { useGetVehicleHistory } from "~/queries/use-get-vehicle-history";
+import type { WsCoordinate, WsFrame } from "~/types";
 
 const wsUrl = import.meta.env.VITE_WS_URL;
 
 const Home = () => {
   let socket: WebSocket;
-  const [liveUpdate, setLiveUpdate] = createSignal<WsCoordinate | null>(null);
-  const [selectedGpsId, setSelectedGpsId] = createSignal<number | null>(null);
+  const [liveUpdates, setLiveUpdates] = createSignal<WsCoordinate[] | null>(
+    null,
+  );
+  const [selectedVehicleId, setSelectedVehicleId] = createSignal<number | null>(
+    null,
+  );
   const [liveTail, setLiveTail] = createSignal<[number, number][]>([]);
 
   createEffect(() => {
     socket = new WebSocket(wsUrl);
     socket.onmessage = (event) => {
       try {
-        setLiveUpdate(JSON.parse(event.data));
+        const frame: WsFrame = JSON.parse(event.data);
+        if (frame.type !== "positions" || !frame.points?.length) return;
+        setLiveUpdates(frame.points);
       } catch {
         console.error("WS parse error", event.data);
       }
@@ -34,19 +40,24 @@ const Home = () => {
 
   // Reset live tail whenever the selected vehicle changes
   createEffect(() => {
-    selectedGpsId();
+    selectedVehicleId();
     setLiveTail([]);
   });
 
-  // Append incoming WS point to the tail when it belongs to the selected vehicle
+  // Append incoming WS points to the tail when they belong to the selected
+  // vehicle. A frame can carry several, so take every match in order.
   createEffect(() => {
-    const update = liveUpdate();
-    if (!update || update.gps_id !== selectedGpsId()) return;
-    setLiveTail((prev) => [...prev, [update.longitude, update.latitude]]);
+    const frame = liveUpdates();
+    const id = selectedVehicleId();
+    if (!frame?.length || id === null) return;
+    const mine = frame
+      .filter((p) => p.vehicle_id === id)
+      .map((p) => [p.longitude, p.latitude] as [number, number]);
+    if (mine.length) setLiveTail((prev) => [...prev, ...mine]);
   });
 
-  const gpsDevices = useGetGpsDevices();
-  const history = useGetGpsHistory(selectedGpsId);
+  const vehicles = useGetVehicles();
+  const history = useGetVehicleHistory(selectedVehicleId);
 
   // Initial history (oldest-first) + live tail appended as vehicle moves
   const historyCoordinates = () => {
@@ -66,10 +77,10 @@ const Home = () => {
       <Suspense fallback={<div>Loading markers...</div>}>
         <div class="h-svh relative">
           <DeclarativeMap
-            markers={gpsDevices.data ?? []}
-            liveUpdate={liveUpdate()}
-            onSelectGps={(id) =>
-              setSelectedGpsId((prev) => (prev === id ? null : id))
+            markers={vehicles.data ?? []}
+            liveUpdates={liveUpdates()}
+            onSelectVehicle={(id) =>
+              setSelectedVehicleId((prev) => (prev === id ? null : id))
             }
             historyCoordinates={historyCoordinates()}
           />

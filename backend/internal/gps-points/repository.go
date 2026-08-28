@@ -27,8 +27,8 @@ func NewGpsPointRepository(db *sql.DB) *GpsPointRepository {
 
 func (r *GpsPointRepository) SaveGpsPointRepo(input *CreateGpsPointRequest) (*GpsPointResponse, error) {
 	var gpspoint GpsPointResponse
-	err := r.db.QueryRow(insertGpsPoint, input.Body.GpsID, input.Body.Bearing, input.Body.Latitude, input.Body.Longitude, input.Body.Timestamp).Scan(
-		&gpspoint.ID, &gpspoint.GpsID, &gpspoint.Bearing, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.Timestamp, &gpspoint.CreatedAt,
+	err := r.db.QueryRow(insertGpsPoint, input.Body.VehicleID, input.Body.Bearing, input.Body.Latitude, input.Body.Longitude, input.Body.Timestamp).Scan(
+		&gpspoint.ID, &gpspoint.VehicleID, &gpspoint.Bearing, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.Timestamp, &gpspoint.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -44,21 +44,21 @@ func (r *GpsPointRepository) SaveGpsPointsRepo(points []CreateGpsPoint) (int, er
 		return 0, nil
 	}
 
-	gpsIDs := make(pq.Int64Array, len(points))
+	vehicleIDs := make(pq.Int64Array, len(points))
 	bearings := make(pq.Float64Array, len(points))
 	latitudes := make(pq.Float64Array, len(points))
 	longitudes := make(pq.Float64Array, len(points))
 	timestamps := make(pq.Int64Array, len(points))
 
 	for i, p := range points {
-		gpsIDs[i] = int64(p.GpsID)
+		vehicleIDs[i] = int64(p.VehicleID)
 		bearings[i] = p.Bearing
 		latitudes[i] = p.Latitude
 		longitudes[i] = p.Longitude
 		timestamps[i] = p.Timestamp
 	}
 
-	res, err := r.db.Exec(insertGpsPointsBatch, gpsIDs, bearings, latitudes, longitudes, timestamps)
+	res, err := r.db.Exec(insertGpsPointsBatch, vehicleIDs, bearings, latitudes, longitudes, timestamps)
 	if err != nil {
 		return 0, err
 	}
@@ -81,7 +81,7 @@ func (r *GpsPointRepository) FetchGpsPointsRepo() (*[]GpsPointResponse, error) {
 	for rows.Next() {
 		var gpspoint GpsPointResponse
 		// select_gpspoints.sql does not include bearing
-		if err = rows.Scan(&gpspoint.ID, &gpspoint.GpsID, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.Timestamp, &gpspoint.CreatedAt); err != nil {
+		if err = rows.Scan(&gpspoint.ID, &gpspoint.VehicleID, &gpspoint.Latitude, &gpspoint.Longitude, &gpspoint.Timestamp, &gpspoint.CreatedAt); err != nil {
 			return nil, err
 		}
 		gpspoints = append(gpspoints, gpspoint)

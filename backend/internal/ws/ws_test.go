@@ -45,8 +45,10 @@ func waitForClients(t *testing.T, hub *Hub, want int) {
 	t.Fatalf("timed out waiting for %d clients, hub has %d", want, hub.count())
 }
 
-func point(id int) gpspoints.CreateGpsPoint {
-	return gpspoints.CreateGpsPoint{GpsID: id, Latitude: 6.5, Longitude: 3.3, Timestamp: int64(id)}
+func point(id int) gpspoints.PositionFrame {
+	return gpspoints.NewPositionFrame([]gpspoints.CreateGpsPoint{
+		{VehicleID: id, Latitude: 6.5, Longitude: 3.3, Timestamp: int64(id)},
+	})
 }
 
 // A failed write to one client must not wedge the hub. This is the regression
@@ -99,12 +101,15 @@ func TestDeadClientDoesNotStarveHealthyOne(t *testing.T) {
 	if err := live.SetReadDeadline(time.Now().Add(3 * time.Second)); err != nil {
 		t.Fatal(err)
 	}
-	var got gpspoints.CreateGpsPoint
+	var got gpspoints.PositionFrame
 	if err := live.ReadJSON(&got); err != nil {
 		t.Fatalf("healthy client received nothing: %v", err)
 	}
-	if got.GpsID != 42 {
-		t.Fatalf("got GpsID %d, want 42", got.GpsID)
+	if got.Type != "positions" {
+		t.Fatalf("got frame type %q, want \"positions\"", got.Type)
+	}
+	if len(got.Points) != 1 || got.Points[0].VehicleID != 42 {
+		t.Fatalf("unexpected frame contents: %+v", got.Points)
 	}
 }
 
@@ -124,12 +129,12 @@ func TestOrderingIsPreserved(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := range n {
-		var got gpspoints.CreateGpsPoint
+		var got gpspoints.PositionFrame
 		if err := c.ReadJSON(&got); err != nil {
 			t.Fatalf("read %d: %v", i, err)
 		}
-		if got.GpsID != i {
-			t.Fatalf("message %d out of order: got GpsID %d", i, got.GpsID)
+		if len(got.Points) != 1 || got.Points[0].VehicleID != i {
+			t.Fatalf("message %d out of order: %+v", i, got.Points)
 		}
 	}
 }

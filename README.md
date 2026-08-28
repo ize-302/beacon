@@ -14,17 +14,17 @@ flowchart LR
     WS["WebSocket Hub"]
     Dash["Dashboard\n(Mapbox)"]
 
-    Sim -->|"POST /gps-points"| API
+    Sim -->|"POST /gps-points/batch"| API
     API --> DB
     API --> WS
-    WS -->|"lat, lng, bearing, timestamp"| Dash
-    Dash -->|"GET /gps (initial load)"| API
+    WS -->|"positions frame"| Dash
+    Dash -->|"GET /vehicles (initial load)"| API
 ```
 
-1. **Backend** seeds the database and exposes a REST API for vehicles, GPS devices, and GPS points.
-2. **Simulator** fetches all registered GPS devices, builds a road graph from Lagos OSM data, and moves each vehicle independently along BFS-computed paths. Sends the vehicle's new position, bearing, and timestamp to the API. New GPS devices are detected and picked up automatically using Server-Sent Events.
-3. **API** saves each GPS point and broadcasts it over WebSocket.
-4. **Dashboard** renders vehicle markers on a Mapbox map. Markers appear on first REST load (if a last coordinate exists) or on first WebSocket ping. Each marker rotates to face its direction of travel and holds the correct bearing as the map is rotated. Clicking a marker loads its GPS history and draws the route on the map; the route grows in real time as the vehicle moves.
+1. **Backend** seeds the database and exposes a REST API for vehicles and GPS points. A vehicle is tracked from the moment it is created — there is no separate device to register.
+2. **Simulator** fetches all registered vehicles, builds a road graph from Lagos OSM data, and moves each vehicle independently along BFS-computed paths. Route searches are capped by a shared planner so concurrent pathfinding cannot exhaust memory. Positions are batched and posted once per interval rather than one request per point. New vehicles are detected and picked up automatically using Server-Sent Events.
+3. **API** writes each batch in one statement and broadcasts it as a single WebSocket frame.
+4. **Dashboard** renders vehicle markers on a Mapbox map. Markers appear on first REST load (if a last coordinate exists) or on first WebSocket ping. Each marker rotates to face its direction of travel and holds the correct bearing as the map is rotated. Clicking a marker loads that vehicle's history and draws the route on the map; the route grows in real time as the vehicle moves.
 
 ## Stack
 
@@ -243,6 +243,12 @@ Full interactive docs available at [`http://localhost:8080/swagger/`](http://loc
 
 OpenAPI JSON schema is served at `/openapi.json` and is used to generate the typed dashboard client via `openapi-generator`.
 
-WebSocket endpoint `/ws` streams `{ gps_id, latitude, longitude, bearing, timestamp }` for every position update.
+WebSocket endpoint `/ws` streams one frame per write:
 
-SSE endpoint `/api/v1/gps-devices/events` streams newly registered GPS devices so the simulator picks them up automatically without polling.
+```json
+{ "type": "positions", "points": [{ "vehicle_id": 1, "latitude": 6.5, "longitude": 3.3, "bearing": 90, "timestamp": 1787868410458 }] }
+```
+
+A frame carries every position recorded in the same batch. The `type` field discriminates it from the trip and driver events that will share this socket later.
+
+SSE endpoint `/api/v1/vehicles/events` streams newly created vehicles so the simulator picks them up automatically without polling.

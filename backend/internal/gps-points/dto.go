@@ -4,7 +4,7 @@ package gpspoints
 import "time"
 
 type CreateGpsPoint struct {
-	GpsID     int     `json:"gps_id" validate:"required"`
+	VehicleID int     `json:"vehicle_id" validate:"required"`
 	Bearing   float64 `json:"bearing"`
 	Latitude  float64 `json:"latitude" validate:"required"`
 	Longitude float64 `json:"longitude" validate:"required"`
@@ -27,9 +27,18 @@ type BatchInsertResult struct {
 	Inserted int `json:"inserted"`
 }
 
+type PositionFrame struct {
+	Type   string           `json:"type"`
+	Points []CreateGpsPoint `json:"points"`
+}
+
+func NewPositionFrame(points []CreateGpsPoint) PositionFrame {
+	return PositionFrame{Type: "positions", Points: points}
+}
+
 type GpsPointResponse struct {
 	ID        int       `json:"id"`
-	GpsID     int       `json:"gps_id"`
+	VehicleID int       `json:"vehicle_id"`
 	Bearing   float64   `json:"bearing"`
 	Latitude  float64   `json:"latitude"`
 	Longitude float64   `json:"longitude"`
