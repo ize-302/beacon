@@ -3,7 +3,7 @@ package gpspoints
 import "github.com/ize-302/beacon/backend/internal/common"
 
 type Broadcaster interface {
-	Broadcast(CreateGpsPoint)
+	Broadcast(PositionFrame)
 }
 
 type GpsPointService struct {
@@ -22,10 +22,26 @@ func (s *GpsPointService) SaveGpsPoint(input *CreateGpsPointRequest) (*common.Ba
 		return nil, err
 	}
 	if s.Hub != nil {
-		s.Hub.Broadcast(*input.Body)
+		s.Hub.Broadcast(NewPositionFrame([]CreateGpsPoint{*input.Body}))
 	}
 	resp.Body.Data = *gpspoint
 	resp.Body.Message = "GPS point recorded successfully"
+	resp.Body.Status = true
+	return resp, nil
+}
+
+func (s *GpsPointService) SaveGpsPoints(input *CreateGpsPointsBatchRequest) (*common.BaseResponseBody[BatchInsertResult], error) {
+	resp := &common.BaseResponseBody[BatchInsertResult]{}
+	inserted, err := s.Repository.SaveGpsPointsRepo(input.Body.Points)
+	if err != nil {
+		return nil, err
+	}
+	if s.Hub != nil {
+		// One frame for the whole batch, not one message per point.
+		s.Hub.Broadcast(NewPositionFrame(input.Body.Points))
+	}
+	resp.Body.Data = BatchInsertResult{Inserted: inserted}
+	resp.Body.Message = "GPS points recorded successfully"
 	resp.Body.Status = true
 	return resp, nil
 }

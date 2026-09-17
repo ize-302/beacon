@@ -1,18 +1,14 @@
 SELECT
 	v.id,
 	v.plate_number,
-	v.vehicle_type,
-	COALESCE(v.device_sn, ''),
-	v.created_at,
 	lp.latitude,
-	lp.longitude,
-	lp.created_at AS last_point_at
+	lp.longitude
 FROM vehicles v
 LEFT JOIN LATERAL (
-	SELECT latitude, longitude, created_at
+	SELECT latitude, longitude
 	FROM gpspoints
 	WHERE vehicle_id = v.id
 	ORDER BY created_at DESC
-	LIMIT 1
+	LIMIT 200
 ) lp ON true
 WHERE v.id = $1

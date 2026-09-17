@@ -10,7 +10,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/ize-302/beacon/backend/internal/common"
 	"github.com/ize-302/beacon/backend/internal/database"
-	"github.com/ize-302/beacon/backend/internal/gps"
 	gpspoints "github.com/ize-302/beacon/backend/internal/gps-points"
 	"github.com/ize-302/beacon/backend/internal/health"
 	"github.com/ize-302/beacon/backend/internal/vehicles"
@@ -55,16 +54,11 @@ func main() {
 	// health routes
 	health.NewHealthHander(apiGroup).RegisterRoutes()
 
-	// vehicles
+	// vehicles: owns tracking, history and the new-vehicle event stream
 	vehicleRepo := vehicles.NewVehicleRepository(db)
-	vehicleService := vehicles.NewVehicleService(vehicleRepo)
-	vehicles.NewVehicleHandler(apiGroup, vehicleService).RegisterRoutes()
-
-	// gps devices
-	gpsRepo := gps.NewGpsRepository(db)
-	eventHub := gps.NewEventHub()
-	gpsService := gps.NewGpsService(gpsRepo, eventHub)
-	gps.NewGpsHandler(apiGroup, gpsService, router).RegisterRoutes()
+	eventHub := vehicles.NewEventHub()
+	vehicleService := vehicles.NewVehicleService(vehicleRepo, eventHub)
+	vehicles.NewVehicleHandler(apiGroup, vehicleService, router).RegisterRoutes()
 
 	// gps-points
 	wsHub := ws.NewHub()

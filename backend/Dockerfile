@@ -45,6 +45,6 @@ ADD --chmod=644 \
   https://github.com/ize-302/beacon/releases/download/map-data/lagos.osm.pbf \
   /app/cmd/simulator/map_data/lagos.osm.pbf
 
-EXPOSE 8080
+EXPOSE 8081
 
 CMD ["/app/main"]

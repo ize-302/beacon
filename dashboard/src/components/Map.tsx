@@ -1,14 +1,14 @@
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import type { GpsResponse } from "~/client/api";
+import type { VehicleResponse } from "~/client/api";
 import type { WsCoordinate } from "~/types";
 import policeCarUrl from "~/components/vehicles/police-car.svg?url";
 
 const vehicleIcons = [policeCarUrl];
 const DEFAULT_ANIM_DURATION = 4000;
-const HISTORY_SOURCE = "gps-history";
-const HISTORY_LAYER = "gps-history-line";
+const HISTORY_SOURCE = "vehicle-history";
+const HISTORY_LAYER = "vehicle-history-line";
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
@@ -28,9 +28,9 @@ function makeMarkerEl(
 }
 
 export default function DeclarativeMap(props: {
-  markers: GpsResponse[];
-  liveUpdate: WsCoordinate | null;
-  onSelectGps: (id: number) => void;
+  markers: VehicleResponse[];
+  liveUpdates: WsCoordinate[] | null;
+  onSelectVehicle: (id: number) => void;
   historyCoordinates: [number, number][] | null;
 }) {
   let mapContainer!: HTMLDivElement;
@@ -95,66 +95,69 @@ export default function DeclarativeMap(props: {
     markerInstances.forEach((m) => m.remove());
     markerInstances.clear();
 
-    props.markers.forEach((gps) => {
-      if (!gps.last_coordinate) return;
-      const { longitude, latitude } = gps.last_coordinate as Required<
-        typeof gps.last_coordinate
+    props.markers.forEach((v) => {
+      if (!v.last_coordinate) return;
+      const { longitude, latitude } = v.last_coordinate as Required<
+        typeof v.last_coordinate
       >;
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-        `<p style="font-weight:600;font-size:13px;margin:0 0 2px">${gps.sn}</p><p style="font-size:12px;color:#666;margin:0">${gps.vehicle?.plate_number ?? ""}</p>`,
+        `<p style="font-weight:600;font-size:13px;margin:0 0 2px">${v.plate_number}</p><p style="font-size:12px;color:#666;margin:0">${v.device_sn ?? ""}</p>`,
       );
       const marker = new mapboxgl.Marker({
         element: makeMarkerEl(
           "20px",
           "40px",
-          (gps.id ?? 0) % vehicleIcons.length,
-          () => props.onSelectGps(gps.id!),
+          (v.id ?? 0) % vehicleIcons.length,
+          () => props.onSelectVehicle(v.id!),
         ),
         rotationAlignment: "map",
       })
         .setLngLat([longitude, latitude])
         .setPopup(popup)
         .addTo(map);
-      markerInstances.set(gps.id!, marker);
+      markerInstances.set(v.id!, marker);
     });
   });
 
-  // Move marker and rotate to face heading on WS update
+  // Move marker and rotate to face heading on WS update. A frame carries every
+  // position recorded in the same write, so apply them all.
   createEffect(() => {
-    const update = props.liveUpdate;
-    if (!update || !mapReady()) return;
+    const frame = props.liveUpdates;
+    if (!frame?.length || !mapReady()) return;
 
-    let marker = markerInstances.get(update.gps_id);
+    for (const update of frame) {
+      let marker = markerInstances.get(update.vehicle_id);
 
-    if (!marker) {
-      const gps = props.markers?.find((g) => g.id === update.gps_id);
-      if (!gps) return;
-      const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-        `<p style="font-weight:600;font-size:13px;margin:0 0 2px">${gps.sn}</p><p style="font-size:12px;color:#666;margin:0">${gps.vehicle?.plate_number ?? ""}</p>`,
+      if (!marker) {
+        const v = props.markers?.find((m) => m.id === update.vehicle_id);
+        if (!v) continue;
+        const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
+          `<p style="font-weight:600;font-size:13px;margin:0 0 2px">${v.plate_number}</p><p style="font-size:12px;color:#666;margin:0">${v.device_sn ?? ""}</p>`,
+        );
+        marker = new mapboxgl.Marker({
+          element: makeMarkerEl(
+            "20px",
+            "40px",
+            (v.id ?? 0) % vehicleIcons.length,
+            () => props.onSelectVehicle(v.id!),
+          ),
+          rotationAlignment: "map",
+        })
+          .setLngLat([update.longitude, update.latitude])
+          .setPopup(popup)
+          .addTo(map);
+        markerInstances.set(update.vehicle_id, marker);
+      }
+
+      animateMarker(
+        marker,
+        update.vehicle_id,
+        update.longitude,
+        update.latitude,
+        update.bearing,
+        update.timestamp,
       );
-      marker = new mapboxgl.Marker({
-        element: makeMarkerEl(
-          "20px",
-          "40px",
-          (gps.id ?? 0) % vehicleIcons.length,
-          () => props.onSelectGps(gps.id!),
-        ),
-        rotationAlignment: "map",
-      })
-        .setLngLat([update.longitude, update.latitude])
-        .setPopup(popup)
-        .addTo(map);
-      markerInstances.set(update.gps_id, marker);
     }
-
-    animateMarker(
-      marker,
-      update.gps_id,
-      update.longitude,
-      update.latitude,
-      update.bearing,
-      update.timestamp,
-    );
   });
 
   // Draw route when history coordinates change

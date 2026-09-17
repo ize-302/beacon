@@ -1,12 +1,10 @@
 name: beacon_backend
 
 services:
-  beacon_db: 
-    container_name: "beacon_postgres_db"
+  beacon_db:
     image: postgres:16
-    networks: 
+    networks:
       - default
-    restart: always
     ports:
       - "5433:5432"
     environment:
@@ -22,32 +20,30 @@ services:
       retries: 5
       start_period: 10s
   beacon_backend:
-    container_name: "beacon_backend"
-    networks: 
+    networks:
       - default
-    build: 
+    build:
       context: .
       target: dev
     volumes:
       - .:/app
       - /app/tmp 
     ports:
-      - "8080:8080"
+      - "8081:8081"
     command: ["make", "api"]
     depends_on:
       beacon_db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/v1/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/api/v1/health || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
       start_period: 60s
   beacon_simulator:
-    container_name: "beacon_simulator"
     networks:
       - default
-    build: 
+    build:
       context: .
       target: dev
     volumes:
@@ -57,7 +53,7 @@ services:
     environment:
       # .env points at 127.0.0.1 for running the simulator outside docker;
       # in compose the api is a separate container
-      API_BASE_URL: http://beacon_backend:8080
+      API_BASE_URL: http://beacon_backend:8081
     depends_on:
       beacon_backend:
         condition: service_healthy

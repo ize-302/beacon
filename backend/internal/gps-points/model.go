@@ -5,7 +5,7 @@ import "time"
 
 type GpsPoint struct {
 	ID        int
-	GpsID     int
+	VehicleID int
 	Bearing   float64
 	Latitude  float64
 	Longitude float64

@@ -2,39 +2,50 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
 
-	movementengine "github.com/ize-302/beacon/backend/cmd/simulator/movement_engine"
-	"github.com/ize-302/osmgraph/osmgraph"
+	"github.com/ize-302/beacon/backend/internal/sim"
 	"github.com/joho/godotenv"
 )
 
-var baseURL string
+// mapDataPath is resolved relative to the working directory, so the simulator
+// must be run from backend/.
+const mapDataPath = "cmd/simulator/map_data/lagos.osm.pbf"
 
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("no .env file found, using environment variables!")
 	}
-	baseURL = os.Getenv("API_BASE_URL")
-	if baseURL == "" {
-		baseURL = fmt.Sprintf("%s", os.Getenv("API_BASE_URL"))
-	}
 
-	f, err := os.Open("cmd/simulator/map_data/lagos.osm.pbf")
+	graph, err := sim.LoadGraph(mapDataPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer f.Close()
+	log.Printf("simulator: graph loaded (%d routable nodes)", graph.Size())
 
-	// this now uses an osm library by yours truely: https://github.com/ize-302/osmgraph
-	nodes, adj, err := osmgraph.GraphBuilder(f, osmgraph.DefaultRoadFilter, osmgraph.DefaultOneway)
-	if err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	cfg := sim.Config{
+		BaseURL:  os.Getenv("API_BASE_URL"),
+		Graph:    graph,
+		Planners: envInt("SIM_PLANNERS"),
+		Seed:     int64(envInt("SIM_SEED")),
+	}
+
+	if err := sim.Run(ctx, cfg); err != nil {
 		log.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+}
 
-	movementengine.Run(baseURL, nodes, adj, ctx)
+func envInt(key string) int {
+	n, err := strconv.Atoi(os.Getenv(key))
+	if err != nil {
+		return 0
+	}
+	return n
 }
