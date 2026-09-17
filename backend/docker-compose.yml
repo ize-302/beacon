@@ -19,6 +19,20 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+
+  drizzle-gateway:
+    image: ghcr.io/drizzle-team/gateway:latest
+    ports:
+      - "4983:4983"
+    environment:
+      PORT: 4983
+      STORE_PATH: /app
+      MASTERPASS: ${DRIZZLE_MASTERPASS:?required}
+    volumes:
+      - drizzle-gateway_data:/app
+    depends_on:
+      - beacon_db
+
   beacon_backend:
     networks:
       - default
@@ -64,3 +78,4 @@ networks:
 
 volumes:
   pgdata:
+  drizzle-gateway_data:
