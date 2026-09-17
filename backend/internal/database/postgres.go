@@ -42,6 +42,10 @@ func DBConn() (*sql.DB, error) {
 		return nil, err
 	}
 
+	db.SetMaxOpenConns(20)
+	db.SetMaxIdleConns(20)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
 	// private network on some platforms don't resolve the instant the
 	// container starts, so give the first connection a few attempts
 	for i := range 10 {
