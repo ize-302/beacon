@@ -11,7 +11,12 @@
 // (see internal/ws), so a struggling server shows up here as rising latency
 // and stalled frames/s long before connections actually drop.
 //
-//	go run ./cmd/wsload -url ws://127.0.0.1:8081/ws -conns 2000 -ramp 30s -duration 5m
+//	go run . -url ws://127.0.0.1:8081/ws -conns 2000 -ramp 30s -duration 5m
+//
+// The target can also come from the environment instead of -url, so repeated
+// runs against the same deployment don't need it retyped: WSLOAD_URL is used
+// as-is, or BASE_URL (the same env var the k6 script reads) has its scheme
+// swapped for ws/wss and "/ws" appended. -url, when passed, wins over both.
 package main
 
 import (
@@ -19,16 +24,59 @@ import (
 	"encoding/json"
 	"flag"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 )
+
+// loadEnvFile pulls in loadtest/.env if present, checking both the common
+// invocation directories (run from loadtest/wsload/, or from the repo root)
+// without letting a missing file be an error — .env is a convenience, not a
+// requirement, since flags and real shell env vars work either way. It never
+// overrides a variable the shell already set.
+func loadEnvFile() {
+	for _, path := range []string{".env", "../.env", "loadtest/.env"} {
+		if err := godotenv.Load(path); err == nil {
+			return
+		}
+	}
+}
+
+// defaultWSURL resolves the target when -url isn't passed: WSLOAD_URL first,
+// then BASE_URL (shared with the k6 script) translated into a ws(s):// URL,
+// then a localhost fallback for a bare `go run .`.
+func defaultWSURL() string {
+	if v := os.Getenv("WSLOAD_URL"); v != "" {
+		return v
+	}
+	if base := os.Getenv("BASE_URL"); base != "" {
+		return deriveWSURL(base)
+	}
+	return "ws://127.0.0.1:8081/ws"
+}
+
+func deriveWSURL(base string) string {
+	u, err := url.Parse(base)
+	if err != nil || u.Host == "" {
+		return base
+	}
+	if u.Scheme == "https" {
+		u.Scheme = "wss"
+	} else {
+		u.Scheme = "ws"
+	}
+	u.Path = strings.TrimSuffix(u.Path, "/") + "/ws"
+	return u.String()
+}
 
 // positionFrame mirrors the wire shape of gpspoints.PositionFrame
 // (backend/internal/gps-points/dto.go). It's copied rather than imported: the
@@ -179,7 +227,9 @@ func readLoop(conn *websocket.Conn, st *stats) {
 }
 
 func main() {
-	url := flag.String("url", "ws://127.0.0.1:8081/ws", "websocket endpoint to load")
+	loadEnvFile()
+
+	wsURL := flag.String("url", defaultWSURL(), "websocket endpoint to load (env: WSLOAD_URL, or derived from BASE_URL)")
 	conns := flag.Int("conns", 500, "number of concurrent connections")
 	ramp := flag.Duration("ramp", 30*time.Second, "time to spread connection opens over")
 	duration := flag.Duration("duration", 5*time.Minute, "how long to hold connections once ramp completes")
@@ -195,7 +245,7 @@ func main() {
 	st := &stats{}
 	reg := newConnRegistry()
 
-	log.Printf("wsload: opening %d connections to %s over %s, holding for %s", *conns, *url, *ramp, *duration)
+	log.Printf("wsload: opening %d connections to %s over %s, holding for %s", *conns, *wsURL, *ramp, *duration)
 
 	var wg sync.WaitGroup
 	rampInterval := time.Duration(0)
@@ -208,7 +258,7 @@ ramp:
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			worker(workCtx, *url, st, reg, *reconnect)
+			worker(workCtx, *wsURL, st, reg, *reconnect)
 		}()
 
 		if rampInterval <= 0 {

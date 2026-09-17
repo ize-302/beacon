@@ -9,31 +9,51 @@
 //   - vehicle_history  : GET /vehicles/{id}/history
 //   - vehicle_churn    : POST /vehicles then DELETE it shortly after
 //
+// setup() fetches the live vehicle list once before the run and every
+// scenario samples real IDs from it — gps_points has a foreign key on
+// vehicle_id, and the batch insert is one atomic statement, so a single
+// point referencing an ID that doesn't exist fails the *entire* batch, not
+// just that point. Assuming a dense 1..N id range (this script's original
+// approach) breaks the moment any vehicle has ever been deleted, and on a
+// live, churning fleet that's the common case, not the edge case.
+//
 // Usage:
 //   k6 run loadtest/k6/api_load.js
-//   BASE_URL=http://127.0.0.1:8081 FLEET_SIZE=2000 BATCH_SIZE=300 \
+//   BASE_URL=http://127.0.0.1:8081 BATCH_SIZE=300 \
 //     BATCH_RATE=20 DURATION=3m k6 run loadtest/k6/api_load.js
 //
 // Env vars (all optional):
-//   BASE_URL    API root, default http://127.0.0.1:8081
-//   FLEET_SIZE  vehicle id range assumed to already exist, default 500
-//   BATCH_SIZE  points per gps-points/batch request, default 200
-//   BATCH_RATE  batches/sec for the write scenario, default 10
-//   READ_RATE   requests/sec for each read scenario, default 20
-//   CHURN_VUS   concurrent VUs creating/deleting vehicles, default 5
-//   DURATION    duration of the steady-state phase, default 2m
+//   BASE_URL      API root, default http://127.0.0.1:8081
+//   BATCH_SIZE    points per gps-points/batch request, default 200
+//   BATCH_RATE    batches/sec for the write scenario, default 10
+//   READ_RATE     requests/sec for each read scenario, default 20
+//   CHURN_VUS     concurrent VUs creating/deleting vehicles, default 5
+//   DURATION      duration of the steady-state phase, default 2m
+//   P95_WRITE_MS  pass/fail p95 latency threshold for the write scenario
+//                 (ms), default 500
+//   P95_READ_MS   pass/fail p95 latency threshold for both read scenarios
+//                 (ms), default 300
+//   MAX_FAIL_RATE pass/fail failure-rate threshold for writes and vehicle
+//                 creation, default 0.01
+//
+// The threshold defaults were tuned against localhost latency. Testing a
+// live remote deployment adds real network RTT on top of that, so raise
+// these to match the environment rather than leaving the localhost numbers
+// in place — otherwise a healthy deployment can false-fail on latency alone.
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
 
 const BASE_URL = __ENV.BASE_URL || 'http://127.0.0.1:8081';
-const FLEET_SIZE = parseInt(__ENV.FLEET_SIZE || '500', 10);
 const BATCH_SIZE = parseInt(__ENV.BATCH_SIZE || '200', 10);
 const BATCH_RATE = parseInt(__ENV.BATCH_RATE || '10', 10);
 const READ_RATE = parseInt(__ENV.READ_RATE || '20', 10);
 const CHURN_VUS = parseInt(__ENV.CHURN_VUS || '5', 10);
 const DURATION = __ENV.DURATION || '2m';
+const P95_WRITE_MS = parseInt(__ENV.P95_WRITE_MS || '500', 10);
+const P95_READ_MS = parseInt(__ENV.P95_READ_MS || '300', 10);
+const MAX_FAIL_RATE = parseFloat(__ENV.MAX_FAIL_RATE || '0.01');
 
 // Roughly Lagos's bounding box, matching the map the simulator drives on.
 // Points don't need to be routable here — this scenario tests the write
@@ -85,11 +105,11 @@ export const options = {
     },
   },
   thresholds: {
-    'http_req_duration{name:gps_batch_write}': ['p(95)<500'],
-    'http_req_duration{name:vehicle_list}': ['p(95)<300'],
-    'http_req_duration{name:vehicle_history}': ['p(95)<300'],
-    gps_batch_write_failures: ['rate<0.01'],
-    vehicle_create_failures: ['rate<0.01'],
+    'http_req_duration{name:gps_batch_write}': [`p(95)<${P95_WRITE_MS}`],
+    'http_req_duration{name:vehicle_list}': [`p(95)<${P95_READ_MS}`],
+    'http_req_duration{name:vehicle_history}': [`p(95)<${P95_READ_MS}`],
+    gps_batch_write_failures: [`rate<${MAX_FAIL_RATE}`],
+    vehicle_create_failures: [`rate<${MAX_FAIL_RATE}`],
   },
 };
 
@@ -105,12 +125,32 @@ function randomLon() {
   return LON_MIN + Math.random() * (LON_MAX - LON_MIN);
 }
 
-export function gpsBatchWrite() {
+// Runs once, in a single VU, before any scenario starts. Its return value is
+// handed to every scenario function as `data`.
+export function setup() {
+  const res = http.get(`${BASE_URL}/api/v1/vehicles`);
+  if (res.status !== 200) {
+    throw new Error(`setup: GET /vehicles returned ${res.status}, cannot build a valid vehicle id pool`);
+  }
+  const vehicleIds = (res.json('data') || [])
+    .map((v) => v.id)
+    .filter((id) => id != null);
+  if (vehicleIds.length === 0) {
+    throw new Error('setup: no vehicles exist yet — create some (or let the simulator run a moment) before load-testing gps_batch_write/vehicle_history');
+  }
+  return { vehicleIds };
+}
+
+function randomVehicleId(data) {
+  return data.vehicleIds[randomInt(0, data.vehicleIds.length - 1)];
+}
+
+export function gpsBatchWrite(data) {
   const now = Date.now();
   const points = [];
   for (let i = 0; i < BATCH_SIZE; i++) {
     points.push({
-      vehicle_id: randomInt(1, FLEET_SIZE),
+      vehicle_id: randomVehicleId(data),
       bearing: Math.random() * 360,
       latitude: randomLat(),
       longitude: randomLon(),
@@ -139,13 +179,11 @@ export function vehicleListRead() {
   vehicleReadFailRate.add(!ok);
 }
 
-export function vehicleHistoryRead() {
-  const id = randomInt(1, FLEET_SIZE);
+export function vehicleHistoryRead(data) {
+  const id = randomVehicleId(data);
   const res = http.get(`${BASE_URL}/api/v1/vehicles/${id}/history`, {
     tags: { name: 'vehicle_history' },
   });
-  // A gap between FLEET_SIZE and actual seeded rows is expected; only count
-  // real server failures.
   const ok = check(res, { 'vehicle history not 5xx': (r) => r.status < 500 });
   historyReadFailRate.add(!ok);
 }
