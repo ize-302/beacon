@@ -6,13 +6,6 @@ import (
 )
 
 // planner bounds how many route searches may run at once.
-//
-// A single bfsPath over the Lagos extract allocates ~29MB on average and up to
-// ~61MB when it has to explore the whole graph. Vehicle goroutines re-plan
-// independently, so without a cap the peak scales with fleet size — 500 vehicles
-// re-planning together would need ~30GB. Capping concurrency holds the ceiling at
-// roughly workers * 61MB no matter how many vehicles exist.
-//
 // A vehicle waiting for a route has nothing else to do, so blocking here costs
 // nothing but a slightly longer pause before it sets off again.
 type planner struct {
@@ -40,7 +33,7 @@ func (p *planner) plan(ctx context.Context, start, goal int64) []int64 {
 	}
 	defer func() { <-p.sem }()
 
-	return bfsPath(p.graph.Adj, start, goal)
+	return aStarPath(p.graph, start, goal)
 }
 
 // inFlight reports how many searches are running. Used by tests.
