@@ -1,10 +1,5 @@
-import {
-  createEffect,
-  createSignal,
-  ErrorBoundary,
-  onCleanup,
-  Suspense,
-} from "solid-js";
+import { useEffect, useMemo, useState } from "react";
+import { ErrorBoundary } from "react-error-boundary";
 import DeclarativeMap from "~/components/Map";
 import AddPanel from "~/components/AddPanel";
 import { useGetVehicles } from "~/queries/use-get-vehicles";
@@ -14,17 +9,14 @@ import type { WsCoordinate, WsFrame } from "~/types";
 const wsUrl = import.meta.env.VITE_WS_URL;
 
 const Home = () => {
-  let socket: WebSocket;
-  const [liveUpdates, setLiveUpdates] = createSignal<WsCoordinate[] | null>(
+  const [liveUpdates, setLiveUpdates] = useState<WsCoordinate[] | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(
     null,
   );
-  const [selectedVehicleId, setSelectedVehicleId] = createSignal<number | null>(
-    null,
-  );
-  const [liveTail, setLiveTail] = createSignal<[number, number][]>([]);
+  const [liveTail, setLiveTail] = useState<[number, number][]>([]);
 
-  createEffect(() => {
-    socket = new WebSocket(wsUrl);
+  useEffect(() => {
+    const socket = new WebSocket(wsUrl);
     socket.onmessage = (event) => {
       try {
         const frame: WsFrame = JSON.parse(event.data);
@@ -35,59 +27,64 @@ const Home = () => {
       }
     };
     socket.onerror = (error) => console.error("WebSocket Error:", error);
-    onCleanup(() => socket.close());
-  });
+    return () => socket.close();
+  }, []);
 
   // Reset live tail whenever the selected vehicle changes
-  createEffect(() => {
-    selectedVehicleId();
+  useEffect(() => {
     setLiveTail([]);
-  });
+  }, [selectedVehicleId]);
 
   // Append incoming WS points to the tail when they belong to the selected
   // vehicle. A frame can carry several, so take every match in order.
-  createEffect(() => {
-    const frame = liveUpdates();
-    const id = selectedVehicleId();
-    if (!frame?.length || id === null) return;
-    const mine = frame
-      .filter((p) => p.vehicle_id === id)
+  useEffect(() => {
+    if (!liveUpdates?.length || selectedVehicleId === null) return;
+    const mine = liveUpdates
+      .filter((p) => p.vehicle_id === selectedVehicleId)
       .map((p) => [p.longitude, p.latitude] as [number, number]);
     if (mine.length) setLiveTail((prev) => [...prev, ...mine]);
-  });
+  }, [liveUpdates, selectedVehicleId]);
 
   const vehicles = useGetVehicles();
   const history = useGetVehicleHistory(selectedVehicleId);
 
-  // Initial history (oldest-first) + live tail appended as vehicle moves
-  const historyCoordinates = () => {
+  // Initial history (oldest-first) + live tail appended as vehicle moves.
+  // Memoized so a WS frame for a different vehicle (which changes
+  // liveUpdates/Home's render but not history.data or liveTail) doesn't
+  // force the map to redraw the route on every tick.
+  const historyCoordinates = useMemo(() => {
     const fetched = history.data?.coordinates;
     const base = fetched?.length
       ? [...fetched]
           .reverse()
           .map((c) => [c.longitude, c.latitude] as [number, number])
       : [];
-    const tail = liveTail();
-    const combined = [...base, ...tail];
+    const combined = [...base, ...liveTail];
     return combined.length ? combined : null;
-  };
+  }, [history.data, liveTail]);
+
+  if (vehicles.isLoading) {
+    return <div>Loading markers...</div>;
+  }
 
   return (
-    <ErrorBoundary fallback={(err) => <div>Error: {err.message}</div>}>
-      <Suspense fallback={<div>Loading markers...</div>}>
-        <div class="h-svh relative">
-          <DeclarativeMap
-            markers={vehicles.data ?? []}
-            liveUpdates={liveUpdates()}
-            onSelectVehicle={(id) =>
-              setSelectedVehicleId((prev) => (prev === id ? null : id))
-            }
-            historyCoordinates={historyCoordinates()}
-          />
+    <ErrorBoundary
+      fallbackRender={({ error }) => (
+        <div>Error: {error instanceof Error ? error.message : String(error)}</div>
+      )}
+    >
+      <div className="h-svh relative">
+        <DeclarativeMap
+          markers={vehicles.data ?? []}
+          liveUpdates={liveUpdates}
+          onSelectVehicle={(id) =>
+            setSelectedVehicleId((prev) => (prev === id ? null : id))
+          }
+          historyCoordinates={historyCoordinates}
+        />
 
-          <AddPanel />
-        </div>
-      </Suspense>
+        <AddPanel vehicleCount={vehicles.data?.length ?? 0} />
+      </div>
     </ErrorBoundary>
   );
 };

@@ -10,28 +10,32 @@
     "generate:api": "bash ./scripts/generate-api-client.sh"
   },
   "dependencies": {
-    "@kobalte/core": "^0.13.11",
-    "@solidjs/router": "^0.16.1",
-    "@tanstack/solid-query": "^5.101.0",
+    "@blueprintjs/core": "^6.20.0",
+    "@blueprintjs/icons": "^6.14.1",
+    "@blueprintjs/select": "^6.3.6",
+    "@tanstack/react-query": "^5.101.0",
     "axios": "^1.17.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "mapbox-gl": "^3.24.0",
     "openapi-fetch": "^0.17.0",
-    "solid-icons": "^1.2.0",
-    "solid-js": "^1.9.12",
-    "solid-map-gl": "^1.13.0",
-    "tailwind-merge": "^3.6.0",
-    "tailwindcss-animate": "^1.0.7"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-error-boundary": "^6.0.0",
+    "react-router": "^8.4.0",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@types/geojson": "^7946.0.16",
     "@types/node": "^24.13.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.15",
     "swagger2openapi": "^7.0.8",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.2",
-    "vite": "^8.0.12",
-    "vite-plugin-solid": "^2.11.12"
+    "vite": "^8.0.12"
   }
 }

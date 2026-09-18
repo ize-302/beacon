@@ -1,140 +1,118 @@
-import { createSignal, Show } from "solid-js";
-import { Button } from "~/components/ui/button";
-import {
-  TextField,
-  TextFieldInput,
-  TextFieldLabel,
-} from "~/components/ui/text-field";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
+import { useState, type SubmitEvent } from "react";
+import { Button, Card, FormGroup, HTMLSelect, InputGroup } from "@blueprintjs/core";
+import { IconNames } from "@blueprintjs/icons";
 import {
   CreateVehicleRequestBodyVehicleTypeEnum,
   type CreateVehicleRequestBodyVehicleTypeEnum as VehicleTypeEnum,
 } from "~/client/api";
 import { useCreateVehicle } from "~/mutations/use-create-vehicle";
-import { MdSharpDirections_car } from "solid-icons/md";
 
-export default function AddPanel() {
-  const [open, setOpen] = createSignal(false);
-  const [plateNumber, setPlateNumber] = createSignal("");
-  const [vehicleType, setVehicleType] = createSignal<VehicleTypeEnum | null>(
-    null,
-  );
-  const [deviceSn, setDeviceSn] = createSignal("");
+const vehicleTypeOptions = Object.values(CreateVehicleRequestBodyVehicleTypeEnum);
 
-  const vehicleTypeOptions = Object.values(
-    CreateVehicleRequestBodyVehicleTypeEnum,
-  );
+export default function AddPanel({ vehicleCount }: { vehicleCount: number }) {
+  const [open, setOpen] = useState(false);
+  const [plateNumber, setPlateNumber] = useState("");
+  const [vehicleType, setVehicleType] = useState<VehicleTypeEnum | "">("");
+  const [deviceSn, setDeviceSn] = useState("");
+
   const createVehicle = useCreateVehicle();
 
   // One step: the vehicle starts being tracked the moment it exists.
-  const handleAddVehicle = async (e: SubmitEvent) => {
+  const handleAddVehicle = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const type = vehicleType();
-    if (!plateNumber().trim() || !type) return;
+    if (!plateNumber.trim() || !vehicleType) return;
     await createVehicle.mutateAsync({
-      plate_number: plateNumber().trim(),
-      vehicle_type: type,
-      device_sn: deviceSn().trim() || undefined,
+      plate_number: plateNumber.trim(),
+      vehicle_type: vehicleType,
+      device_sn: deviceSn.trim() || undefined,
     });
     setPlateNumber("");
-    setVehicleType(null);
+    setVehicleType("");
     setDeviceSn("");
   };
 
   return (
-    <div class="absolute top-4 left-4 z-10 flex items-start">
-      {/* Vertical toolbar */}
-      <div class="flex flex-col border bg-background shadow-sm">
-        <button
-          onClick={() => setOpen((prev) => !prev)}
-          class={`flex flex-col items-center gap-1 px-3 py-3 text-[11px] font-medium transition-colors ${open() ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground hover:text-foreground"}`}
-        >
-          <MdSharpDirections_car size={20} />
-          Vehicle
-        </button>
-      </div>
+    <div className="absolute top-4 left-4 z-10 flex items-start">
+      <Button
+        icon={IconNames.KNOWN_VEHICLE}
+        text={
+          <>
+            Vehicle <span className="font-semibold">{vehicleCount}</span>
+          </>
+        }
+        active={open}
+        onClick={() => setOpen((prev) => !prev)}
+      />
 
-      {/* Flyout panel */}
-      <Show when={open()}>
-        <div class="w-64 border-t border-r border-b bg-background shadow-sm">
-          <div class="flex items-center justify-between px-4 py-3 border-b">
-            <span class="text-sm font-semibold">Add Vehicle</span>
-            <button
+      {open && (
+        <Card className="w-64 ml-2 !p-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <span className="text-sm font-semibold">Add Vehicle</span>
+            <Button
+              variant="minimal"
+              size="small"
+              icon={IconNames.CROSS}
               onClick={() => setOpen(false)}
-              class="text-muted-foreground hover:text-foreground text-base leading-none"
-            >
-              ✕
-            </button>
+            />
           </div>
 
-          <div class="p-4">
-            <form onSubmit={handleAddVehicle} class="space-y-4">
-              <TextField>
-                <TextFieldLabel>Plate Number</TextFieldLabel>
-                <TextFieldInput
+          <div className="p-4">
+            <form onSubmit={handleAddVehicle} className="space-y-4">
+              <FormGroup label="Plate Number">
+                <InputGroup
                   placeholder="e.g. LND 123 XY"
-                  value={plateNumber()}
-                  onInput={(e) => setPlateNumber(e.currentTarget.value)}
+                  value={plateNumber}
+                  onChange={(e) => setPlateNumber(e.target.value)}
                 />
-              </TextField>
-              <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium leading-none">
-                  Vehicle Type
-                </label>
-                <Select
-                  options={vehicleTypeOptions}
-                  value={vehicleType()}
-                  onChange={setVehicleType}
-                  placeholder="Select type"
-                  itemComponent={(props) => (
-                    <SelectItem item={props.item}>
-                      {props.item.rawValue}
-                    </SelectItem>
-                  )}
+              </FormGroup>
+
+              <FormGroup label="Vehicle Type">
+                <HTMLSelect
+                  fill
+                  value={vehicleType}
+                  onChange={(e) => setVehicleType(e.target.value as VehicleTypeEnum)}
                 >
-                  <SelectTrigger>
-                    <SelectValue<VehicleTypeEnum>>
-                      {(state) => state.selectedOption()}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent />
-                </Select>
-              </div>
-              <TextField>
-                <TextFieldLabel>Device Serial (optional)</TextFieldLabel>
-                <TextFieldInput
+                  <option value="" disabled>
+                    Select type
+                  </option>
+                  {vehicleTypeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </HTMLSelect>
+              </FormGroup>
+
+              <FormGroup label="Device Serial (optional)">
+                <InputGroup
                   placeholder="e.g. GPS-001"
-                  value={deviceSn()}
-                  onInput={(e) => setDeviceSn(e.currentTarget.value)}
+                  value={deviceSn}
+                  onChange={(e) => setDeviceSn(e.target.value)}
                 />
-              </TextField>
+              </FormGroup>
+
               <Button
                 type="submit"
-                class="w-full"
-                disabled={createVehicle.isPending}
-              >
-                {createVehicle.isPending ? "Adding..." : "Add Vehicle"}
-              </Button>
-              <Show when={createVehicle.isSuccess}>
-                <p class="text-xs text-green-600">
+                fill
+                intent="primary"
+                loading={createVehicle.isPending}
+                text={createVehicle.isPending ? "Adding..." : "Add Vehicle"}
+              />
+
+              {createVehicle.isSuccess && (
+                <p className="text-xs text-green-600">
                   Vehicle added and now being tracked.
                 </p>
-              </Show>
-              <Show when={createVehicle.isError}>
-                <p class="text-xs text-destructive">
-                  {(createVehicle.error as Error)?.message}
+              )}
+              {createVehicle.isError && (
+                <p className="text-xs text-destructive">
+                  {createVehicle.error?.message}
                 </p>
-              </Show>
+              )}
             </form>
           </div>
-        </div>
-      </Show>
+        </Card>
+      )}
     </div>
   );
 }

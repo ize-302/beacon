@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { VehicleResponse } from "~/client/api";
@@ -37,32 +37,55 @@ type VehiclePosition = {
   deviceSn: string;
 };
 
-export default function DeclarativeMap(props: {
+export default function DeclarativeMap({
+  markers,
+  liveUpdates,
+  onSelectVehicle,
+  historyCoordinates,
+}: {
   markers: VehicleResponse[];
   liveUpdates: WsCoordinate[] | null;
   onSelectVehicle: (id: number) => void;
   historyCoordinates: [number, number][] | null;
 }) {
-  let mapContainer!: HTMLDivElement;
-  let map: mapboxgl.Map;
-  const [mapReady, setMapReady] = createSignal(false);
-  const [layersReady, setLayersReady] = createSignal(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [layersReady, setLayersReady] = useState(false);
+
+  // Always call the latest onSelectVehicle from mapbox's event handlers,
+  // which are wired up once in the mount effect below and would otherwise
+  // close over a stale callback from the first render.
+  const onSelectVehicleRef = useRef(onSelectVehicle);
+  useEffect(() => {
+    onSelectVehicleRef.current = onSelectVehicle;
+  }, [onSelectVehicle]);
+
+  // Same reasoning: the live-update effect only wants to re-run when a new
+  // frame arrives, not whenever the marker list refetches, but still needs
+  // the current list to fill in plate/device details for a vehicle it
+  // hasn't seen yet.
+  const markersRef = useRef(markers);
+  useEffect(() => {
+    markersRef.current = markers;
+  }, [markers]);
 
   // One shared position per vehicle, rendered every frame into a single
   // GeoJSON source. Thousands of individual DOM markers each running their
   // own rAF loop is what actually falls over at fleet scale — a single
   // WebGL-rendered layer, updated by one shared loop, handles it fine.
-  const positions = new Map<number, VehiclePosition>();
-  let rafId: number | null = null;
+  const positionsRef = useRef(new Map<number, VehiclePosition>());
+  const rafIdRef = useRef<number | null>(null);
 
   function syncSource() {
+    const map = mapRef.current;
     const source = map?.getSource(VEHICLES_SOURCE) as
       | mapboxgl.GeoJSONSource
       | undefined;
     if (!source) return;
 
     const features: Feature<Point>[] = [];
-    positions.forEach((p, id) => {
+    positionsRef.current.forEach((p, id) => {
       features.push({
         type: "Feature",
         properties: {
@@ -89,16 +112,16 @@ export default function DeclarativeMap(props: {
   // Interpolation still runs every frame for smoothness; only the push to
   // the map is throttled.
   const SYNC_INTERVAL_MS = 100;
-  let lastSyncTime = 0;
+  const lastSyncTimeRef = useRef(0);
 
   function startAnimationLoop() {
-    if (rafId !== null) return;
+    if (rafIdRef.current !== null) return;
 
     const step = () => {
       const now = performance.now();
       let stillAnimating = false;
 
-      positions.forEach((p) => {
+      positionsRef.current.forEach((p) => {
         const t = Math.min((now - p.startTime) / p.duration, 1);
         p.lng = p.fromLng + (p.toLng - p.fromLng) * t;
         p.lat = p.fromLat + (p.toLat - p.fromLat) * t;
@@ -107,15 +130,15 @@ export default function DeclarativeMap(props: {
 
       // Always push on the final frame so the resting position is exact,
       // not wherever the throttle last landed.
-      if (!stillAnimating || now - lastSyncTime >= SYNC_INTERVAL_MS) {
+      if (!stillAnimating || now - lastSyncTimeRef.current >= SYNC_INTERVAL_MS) {
         syncSource();
-        lastSyncTime = now;
+        lastSyncTimeRef.current = now;
       }
 
-      rafId = stillAnimating ? requestAnimationFrame(step) : null;
+      rafIdRef.current = stillAnimating ? requestAnimationFrame(step) : null;
     };
 
-    rafId = requestAnimationFrame(step);
+    rafIdRef.current = requestAnimationFrame(step);
   }
 
   function popupHtml(plateNumber: string, deviceSn: string) {
@@ -123,6 +146,9 @@ export default function DeclarativeMap(props: {
   }
 
   function initVehicleLayers() {
+    const map = mapRef.current;
+    if (!map) return;
+
     map.addSource(VEHICLES_SOURCE, {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] },
@@ -217,7 +243,7 @@ export default function DeclarativeMap(props: {
         .setLngLat(coords)
         .setHTML(popupHtml(p.plate_number, p.device_sn))
         .addTo(map);
-      props.onSelectVehicle(p.id);
+      onSelectVehicleRef.current(p.id);
     });
 
     for (const layer of [CLUSTER_LAYER, VEHICLE_POINTS_LAYER]) {
@@ -232,15 +258,18 @@ export default function DeclarativeMap(props: {
     setLayersReady(true);
   }
 
-  onMount(() => {
-    map = new mapboxgl.Map({
-      container: mapContainer,
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
       style: "mapbox://styles/mapbox/streets-v12",
       center: [3.37936, 6.5103],
       zoom: 8,
       pitchWithRotate: false,
       maxPitch: 0,
     });
+    mapRef.current = map;
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
     map.on("load", () => {
       setMapReady(true);
@@ -251,19 +280,26 @@ export default function DeclarativeMap(props: {
       };
       img.src = policeCarUrl;
     });
-  });
+
+    return () => {
+      if (rafIdRef.current !== null) cancelAnimationFrame(rafIdRef.current);
+      map.remove();
+      mapRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Seed positions from the REST vehicle list. Only fills in vehicles we
   // don't already know about, so a refetch never snaps an actively-animating
   // vehicle back to a stale coordinate.
-  createEffect(() => {
-    if (!layersReady() || !props.markers?.length) return;
+  useEffect(() => {
+    if (!layersReady || !markers?.length) return;
 
     let changed = false;
-    props.markers.forEach((v) => {
+    markers.forEach((v) => {
       if (v.id == null) return;
 
-      const existing = positions.get(v.id);
+      const existing = positionsRef.current.get(v.id);
       if (existing) {
         existing.plateNumber = v.plate_number;
         existing.deviceSn = v.device_sn ?? "";
@@ -274,7 +310,7 @@ export default function DeclarativeMap(props: {
       const { longitude, latitude } = v.last_coordinate as Required<
         typeof v.last_coordinate
       >;
-      positions.set(v.id, {
+      positionsRef.current.set(v.id, {
         lng: longitude,
         lat: latitude,
         fromLng: longitude,
@@ -291,18 +327,18 @@ export default function DeclarativeMap(props: {
     });
 
     if (changed) syncSource();
-  });
+  }, [layersReady, markers]);
 
   // A frame carries every position recorded in the same write, so animate
   // them all toward their new coordinate.
-  createEffect(() => {
-    const frame = props.liveUpdates;
-    if (!frame?.length || !layersReady()) return;
+  useEffect(() => {
+    const frame = liveUpdates;
+    if (!frame?.length || !layersReady) return;
 
     for (const update of frame) {
-      let p = positions.get(update.vehicle_id);
+      let p = positionsRef.current.get(update.vehicle_id);
       if (!p) {
-        const v = props.markers?.find((m) => m.id === update.vehicle_id);
+        const v = markersRef.current?.find((m) => m.id === update.vehicle_id);
         p = {
           lng: update.longitude,
           lat: update.latitude,
@@ -316,7 +352,7 @@ export default function DeclarativeMap(props: {
           plateNumber: v?.plate_number ?? "",
           deviceSn: v?.device_sn ?? "",
         };
-        positions.set(update.vehicle_id, p);
+        positionsRef.current.set(update.vehicle_id, p);
       }
 
       const duration = p.lastTimestamp
@@ -334,12 +370,13 @@ export default function DeclarativeMap(props: {
     }
 
     startAnimationLoop();
-  });
+  }, [liveUpdates, layersReady]);
 
   // Draw route when history coordinates change
-  createEffect(() => {
-    if (!mapReady()) return;
-    const coords = props.historyCoordinates ?? [];
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map) return;
+    const coords = historyCoordinates ?? [];
 
     if (!map.getSource(HISTORY_SOURCE)) {
       map.addSource(HISTORY_SOURCE, {
@@ -368,12 +405,9 @@ export default function DeclarativeMap(props: {
       properties: {},
       geometry: { type: "LineString", coordinates: coords },
     });
-  });
+  }, [mapReady, historyCoordinates]);
 
-  onCleanup(() => {
-    if (rafId !== null) cancelAnimationFrame(rafId);
-    if (map) map.remove();
-  });
-
-  return <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />;
+  return (
+    <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
+  );
 }
