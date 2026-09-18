@@ -1,14 +1,14 @@
-import { createMutation, useQueryClient } from "@tanstack/solid-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { CreateVehicleRequestBody } from "~/client/api";
 import { vehiclesApi } from "~/api/client";
 
 export const useCreateVehicle = () => {
   const queryClient = useQueryClient();
-  return createMutation(() => ({
+  return useMutation({
     mutationFn: async (body: CreateVehicleRequestBody) => {
       const res = await vehiclesApi.createVehicle(body);
       return res.data.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vehicles"] }),
-  }));
+  });
 };

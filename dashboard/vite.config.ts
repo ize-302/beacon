@@ -1,9 +1,9 @@
 import path from "path";
 import { defineConfig } from "vite";
-import solid from "vite-plugin-solid";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-	plugins: [solid()],
+	plugins: [react()],
 	resolve: {
 		alias: {
 			"~": path.resolve(import.meta.dirname, "./src"),
