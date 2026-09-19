@@ -5,9 +5,7 @@ import "time"
 
 type CreateVehicleRequest struct {
 	Body *struct {
-		PlateNumber string      `json:"plate_number"  validate:"required"`
-		VehicleType VehicleType `json:"vehicle_type" validate:"required"`
-		DeviceSN    string      `json:"device_sn,omitempty"`
+		PlateNumber string `json:"plate_number" validate:"required"`
 	}
 }
 
@@ -20,8 +18,6 @@ type Coordinate struct {
 type VehicleResponse struct {
 	ID             int         `json:"id"`
 	PlateNumber    string      `json:"plate_number"`
-	VehicleType    VehicleType `json:"vehicle_type"`
-	DeviceSN       string      `json:"device_sn"`
 	LastCoordinate *Coordinate `json:"last_coordinate"`
 	CreatedAt      time.Time   `json:"created_at"`
 }

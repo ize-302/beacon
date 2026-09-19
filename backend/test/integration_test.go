@@ -288,8 +288,6 @@ func makeTrackedVehicle(t *testing.T) int {
 
 	code, body := doJSON(t, http.MethodPost, apiURL()+"/api/v1/vehicles", map[string]any{
 		"plate_number": plate,
-		"vehicle_type": "car",
-		"device_sn":    plate + "-SN",
 	})
 	if code != http.StatusCreated {
 		t.Fatalf("create vehicle returned %d: %s", code, body)

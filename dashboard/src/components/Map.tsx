@@ -34,7 +34,6 @@ type VehiclePosition = {
   // matches how long the vehicle actually took between ticks
   lastTimestamp?: number;
   plateNumber: string;
-  deviceSn: string;
 };
 
 export default function DeclarativeMap({
@@ -91,7 +90,6 @@ export default function DeclarativeMap({
         properties: {
           id,
           plate_number: p.plateNumber,
-          device_sn: p.deviceSn,
           bearing: p.bearing,
         },
         geometry: { type: "Point", coordinates: [p.lng, p.lat] },
@@ -141,8 +139,8 @@ export default function DeclarativeMap({
     rafIdRef.current = requestAnimationFrame(step);
   }
 
-  function popupHtml(plateNumber: string, deviceSn: string) {
-    return `<p style="font-weight:600;font-size:13px;margin:0 0 2px">${plateNumber}</p><p style="font-size:12px;color:#666;margin:0">${deviceSn}</p>`;
+  function popupHtml(plateNumber: string) {
+    return `<p style="font-weight:600;font-size:13px;margin:0">${plateNumber}</p>`;
   }
 
   function initVehicleLayers() {
@@ -233,7 +231,6 @@ export default function DeclarativeMap({
       const p = f.properties as {
         id: number;
         plate_number: string;
-        device_sn: string;
       };
       const coords = (f.geometry as Point).coordinates.slice() as [
         number,
@@ -241,7 +238,7 @@ export default function DeclarativeMap({
       ];
       new mapboxgl.Popup({ offset: 25 })
         .setLngLat(coords)
-        .setHTML(popupHtml(p.plate_number, p.device_sn))
+        .setHTML(popupHtml(p.plate_number))
         .addTo(map);
       onSelectVehicleRef.current(p.id);
     });
@@ -302,7 +299,6 @@ export default function DeclarativeMap({
       const existing = positionsRef.current.get(v.id);
       if (existing) {
         existing.plateNumber = v.plate_number;
-        existing.deviceSn = v.device_sn ?? "";
         return;
       }
 
@@ -321,7 +317,6 @@ export default function DeclarativeMap({
         startTime: 0,
         duration: DEFAULT_ANIM_DURATION,
         plateNumber: v.plate_number,
-        deviceSn: v.device_sn ?? "",
       });
       changed = true;
     });
@@ -350,7 +345,6 @@ export default function DeclarativeMap({
           startTime: 0,
           duration: DEFAULT_ANIM_DURATION,
           plateNumber: v?.plate_number ?? "",
-          deviceSn: v?.device_sn ?? "",
         };
         positionsRef.current.set(update.vehicle_id, p);
       }
