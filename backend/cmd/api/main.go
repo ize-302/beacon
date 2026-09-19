@@ -26,10 +26,10 @@ func main() {
 	defer db.Close()
 
 	h := &database.Handler{DB: db}
-	if err = h.SeedDB(); err != nil {
-		fmt.Println("Error occured while seeding db", err)
+	if err = h.Migrate(); err != nil {
+		fmt.Println("Error occured while migrating db", err)
 	} else {
-		fmt.Println("successfully seeded database")
+		fmt.Println("successfully migrated database")
 	}
 
 	router := chi.NewMux()
