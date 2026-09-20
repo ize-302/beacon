@@ -2,6 +2,7 @@ package sim
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync/atomic"
 	"time"
@@ -29,6 +30,9 @@ type sender struct {
 	dropped atomic.Uint64 // queue was full; never left the simulator
 	failed  atomic.Uint64 // posted but the API rejected or timed out
 	batches atomic.Uint64
+
+	// The most recent send error (a string)
+	lastErr atomic.Value
 }
 
 func newSender(client poster, queue int, interval time.Duration, maxBatch int) *sender {
@@ -78,6 +82,7 @@ func (s *sender) run(ctx context.Context) {
 			if ctx.Err() == nil {
 				// Not fatal — the next positions supersede these. This used to
 				// be a panic, which turned any API blip into a dead simulator.
+				s.lastErr.Store(err.Error())
 				s.failed.Add(uint64(len(batch)))
 			}
 		} else {
@@ -110,11 +115,17 @@ func (s *sender) run(ctx context.Context) {
 			if sent == lastSent && dropped == lastDropped && failed == lastFailed {
 				continue
 			}
-			log.Printf("simulator: sent %d points in %d batches (+%d/+%d), dropped %d (+%d), failed %d (+%d), queue %d/%d",
+			line := fmt.Sprintf("simulator: sent %d points in %d batches (+%d/+%d), dropped %d (+%d), failed %d (+%d), queue %d/%d",
 				sent, batches, sent-lastSent, batches-lastBatches,
 				dropped, dropped-lastDropped,
 				failed, failed-lastFailed,
 				len(s.out), cap(s.out))
+			if failed > lastFailed {
+				if msg, _ := s.lastErr.Load().(string); msg != "" {
+					line += ", last error: " + msg
+				}
+			}
+			log.Print(line)
 			lastSent, lastDropped, lastFailed, lastBatches = sent, dropped, failed, batches
 		}
 	}

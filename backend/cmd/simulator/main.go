@@ -31,10 +31,11 @@ func main() {
 	defer stop()
 
 	cfg := sim.Config{
-		BaseURL:  os.Getenv("API_BASE_URL"),
-		Graph:    graph,
-		Planners: envInt("SIM_PLANNERS"),
-		Seed:     int64(envInt("SIM_SEED")),
+		BaseURL:   os.Getenv("API_BASE_URL"),
+		Graph:     graph,
+		Planners:  envInt("SIM_PLANNERS"),
+		AdmitRate: envInt("SIM_ADMIT_RATE"),
+		Seed:      int64(envInt("SIM_SEED")),
 	}
 
 	if err := sim.Run(ctx, cfg); err != nil {
@@ -42,10 +43,16 @@ func main() {
 	}
 }
 
+// envInt returns 0 when the variable is unset, so the config default applies.
+// A value that is set but not a number is a mistake, not a request for the default.
 func envInt(key string) int {
-	n, err := strconv.Atoi(os.Getenv(key))
-	if err != nil {
+	v := os.Getenv(key)
+	if v == "" {
 		return 0
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		log.Fatalf("%s must be an integer, got %q", key, v)
 	}
 	return n
 }

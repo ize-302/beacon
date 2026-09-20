@@ -147,22 +147,3 @@ func computeBearing(from, to osm.Node) float64 {
 	degrees = math.Mod(degrees+360, 360)
 	return degrees
 }
-
-// closestNode is a linear scan over every node in the graph. It runs once per
-// vehicle when one is admitted with a known last position, so the cost is paid
-// rarely — a spatial index replaces it when vehicles can be spawned at an
-// arbitrary point on the map.
-func closestNode(nodes map[int64]osm.Node, lat, lng float64) int64 {
-	var closest int64
-	minDist := math.MaxFloat64
-	for id, n := range nodes {
-		latDiff := n.Lat - lat
-		lngDiff := n.Lon - lng
-		d := (latDiff * latDiff) + (lngDiff * lngDiff)
-		if d < minDist {
-			minDist = d
-			closest = id
-		}
-	}
-	return closest
-}

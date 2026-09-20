@@ -18,9 +18,7 @@ func (s *VehicleService) CreateVehicle(input *CreateVehicleRequest) (*common.Bas
 		return nil, err
 	}
 	// Announce vehicle creation immediately so new vehicle can start moving
-	if s.EventHub != nil {
-		s.EventHub.Publish(*vehicle)
-	}
+	s.EventHub.Publish(*vehicle)
 	resp.Body.Data = *vehicle
 	resp.Body.Message = "Vehicle successfully created"
 	resp.Body.Status = true
