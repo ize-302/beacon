@@ -21,9 +21,7 @@ func (s *GpsPointService) SaveGpsPoint(input *CreateGpsPointRequest) (*common.Ba
 	if err != nil {
 		return nil, err
 	}
-	if s.Hub != nil {
-		s.Hub.Broadcast(NewPositionFrame([]CreateGpsPoint{*input.Body}))
-	}
+	s.Hub.Broadcast(NewPositionFrame([]CreateGpsPoint{*input.Body}))
 	resp.Body.Data = *gpspoint
 	resp.Body.Message = "GPS point recorded successfully"
 	resp.Body.Status = true
@@ -36,10 +34,8 @@ func (s *GpsPointService) SaveGpsPoints(input *CreateGpsPointsBatchRequest) (*co
 	if err != nil {
 		return nil, err
 	}
-	if s.Hub != nil {
-		// One frame for the whole batch, not one message per point.
-		s.Hub.Broadcast(NewPositionFrame(input.Body.Points))
-	}
+	// One frame for the whole batch, not one message per point.
+	s.Hub.Broadcast(NewPositionFrame(input.Body.Points))
 	resp.Body.Data = BatchInsertResult{Inserted: inserted}
 	resp.Body.Message = "GPS points recorded successfully"
 	resp.Body.Status = true

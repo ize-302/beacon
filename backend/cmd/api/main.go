@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -26,11 +27,10 @@ func main() {
 	defer db.Close()
 
 	h := &database.Handler{DB: db}
-	if err = h.SeedDB(); err != nil {
-		fmt.Println("Error occured while seeding db", err)
-	} else {
-		fmt.Println("successfully seeded database")
+	if err = h.Migrate(); err != nil {
+		log.Fatalf("migrate database: %v", err)
 	}
+	fmt.Println("successfully migrated database")
 
 	router := chi.NewMux()
 
@@ -52,7 +52,7 @@ func main() {
 	apiGroup := huma.NewGroup(api, "/api/v1")
 
 	// health routes
-	health.NewHealthHander(apiGroup).RegisterRoutes()
+	health.NewHealthHandler(apiGroup).RegisterRoutes()
 
 	// vehicles: owns tracking, history and the new-vehicle event stream
 	vehicleRepo := vehicles.NewVehicleRepository(db)
@@ -74,8 +74,7 @@ func main() {
 		port = "8080"
 	}
 	fmt.Printf("Server listening on port %s...\n", port)
-	err = http.ListenAndServe(":"+port, common.CorsMiddleware(router))
-	if err != nil {
-		fmt.Printf("Server failed to listen on port %s\n", port)
+	if err = http.ListenAndServe(":"+port, common.CorsMiddleware(router)); err != nil {
+		log.Fatalf("server on port %s: %v", port, err)
 	}
 }

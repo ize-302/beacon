@@ -44,7 +44,7 @@ func scanVehicle(s scanner) (*VehicleResponse, error) {
 	var lastAt sql.NullTime
 
 	if err := s.Scan(
-		&v.ID, &v.PlateNumber, &v.VehicleType, &v.DeviceSN, &v.CreatedAt,
+		&v.ID, &v.PlateNumber, &v.CreatedAt,
 		&lat, &lng, &lastAt,
 	); err != nil {
 		return nil, err
@@ -66,8 +66,8 @@ func scanVehicle(s scanner) (*VehicleResponse, error) {
 
 func (r *VehicleRepository) CreateVehicleRepo(input *CreateVehicleRequest) (*VehicleResponse, error) {
 	var v VehicleResponse
-	err := r.db.QueryRow(insertVehicle, input.Body.PlateNumber, input.Body.VehicleType, input.Body.DeviceSN).
-		Scan(&v.ID, &v.PlateNumber, &v.VehicleType, &v.DeviceSN, &v.CreatedAt)
+	err := r.db.QueryRow(insertVehicle, input.Body.PlateNumber).
+		Scan(&v.ID, &v.PlateNumber, &v.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

@@ -189,6 +189,11 @@ func TestSenderSurvivesPostFailure(t *testing.T) {
 		t.Fatalf("sender stopped after a failure: only %d handled", got)
 	}
 
+	// The reason has to be recoverable: the counter alone says nothing about why.
+	if msg, _ := s.lastErr.Load().(string); msg != context.DeadlineExceeded.Error() {
+		t.Fatalf("lastErr = %q, want %q", msg, context.DeadlineExceeded.Error())
+	}
+
 	// Still alive and draining.
 	s.enqueue(gpspoints.CreateGpsPoint{VehicleID: 1, Timestamp: 99})
 	time.Sleep(200 * time.Millisecond)
@@ -323,5 +328,134 @@ func TestRandomNodeIsSeedReproducible(t *testing.T) {
 		if a[i] != b[i] {
 			t.Fatalf("same seed produced different node at %d: %d vs %d", i, a[i], b[i])
 		}
+	}
+}
+
+// The grid must agree with a brute-force scan, including for queries far outside
+// the mapped area where the search has to walk many empty rings.
+func TestNearestNodeMatchesBruteForce(t *testing.T) {
+	rng := rand.New(rand.NewSource(7))
+	nodes := make(map[int64]osm.Node)
+	adj := make(map[int64][]int64)
+	for i := range 3000 {
+		id := int64(i + 1)
+		nodes[id] = osm.Node{ID: osm.NodeID(id), Lat: 6.3 + rng.Float64()*0.4, Lon: 3.1 + rng.Float64()*0.5}
+		adj[id] = []int64{1}
+	}
+	g := NewGraph(nodes, adj)
+
+	dist := func(id int64, lat, lng float64) float64 {
+		n := nodes[id]
+		return (n.Lat-lat)*(n.Lat-lat) + (n.Lon-lng)*(n.Lon-lng)
+	}
+
+	for range 300 {
+		// mostly inside the box, sometimes well outside it
+		lat, lng := 6.2+rng.Float64()*0.6, 3.0+rng.Float64()*0.7
+		if rng.Intn(5) == 0 {
+			lat, lng = rng.Float64()*20-10, rng.Float64()*20-10
+		}
+
+		want := int64(0)
+		for id := range nodes {
+			if want == 0 || dist(id, lat, lng) < dist(want, lat, lng) {
+				want = id
+			}
+		}
+		if got := g.NearestNode(lat, lng); dist(got, lat, lng) != dist(want, lat, lng) {
+			t.Fatalf("NearestNode(%f, %f) = %d, brute force says %d", lat, lng, got, want)
+		}
+	}
+}
+
+func TestNearestNodeEmptyGraph(t *testing.T) {
+	if got := NewGraph(nil, nil).NearestNode(6.5, 3.3); got != 0 {
+		t.Fatalf("empty graph returned node %d, want 0", got)
+	}
+}
+
+// A fleet must be admitted at the configured rate rather than all at once.
+func TestAdmitterPacesStarts(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	a := newAdmitter(ctx, 200) // one slot every 5ms
+
+	start := time.Now()
+	var wg sync.WaitGroup
+	for range 20 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			a.wait(ctx)
+		}()
+	}
+	wg.Wait()
+
+	// 20 slots at 5ms each is ~100ms; without pacing this returns instantly.
+	if elapsed := time.Since(start); elapsed < 80*time.Millisecond {
+		t.Fatalf("20 vehicles admitted in %v, expected pacing near 100ms", elapsed)
+	}
+}
+
+func TestAdmitterWaitRespectsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	a := newAdmitter(ctx, 1) // slow enough that the wait must be interrupted
+
+	done := make(chan bool)
+	go func() { done <- a.wait(ctx) }()
+
+	cancel()
+	select {
+	case ok := <-done:
+		if ok {
+			t.Fatal("wait reported a slot after cancellation")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("wait did not return after cancellation")
+	}
+}
+
+func TestNilAdmitterNeverBlocks(t *testing.T) {
+	var a *admitter
+	if !a.wait(context.Background()) {
+		t.Fatal("nil admitter should admit immediately")
+	}
+}
+
+// A vehicle must set off as soon as it is admitted, not after its first
+// interval. The interval here is far longer than the test waits.
+func TestVehicleMovesImmediatelyAfterAdmission(t *testing.T) {
+	g := lineGraph(100)
+	capture := &capturingPoster{}
+
+	cfg := Config{
+		Graph:         g,
+		MinInterval:   time.Minute,
+		MaxInterval:   time.Minute,
+		SendQueue:     16,
+		BatchInterval: 10 * time.Millisecond,
+		Seed:          1,
+	}
+	cfg.applyDefaults()
+
+	w := &world{
+		cfg:     cfg,
+		graph:   g,
+		planner: newPlanner(g, 2),
+		sender:  newSender(capture, cfg.SendQueue, cfg.BatchInterval, cfg.BatchSize),
+		running: make(map[int]struct{}),
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go w.sender.run(ctx)
+	go w.driveVehicle(ctx, vehicles.VehicleResponse{ID: 3, PlateNumber: "TEST-3"})
+
+	deadline := time.Now().Add(2 * time.Second)
+	for capture.count() < 1 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if capture.count() < 1 {
+		t.Fatal("no position within 2s of admission; vehicle is waiting for its interval")
 	}
 }

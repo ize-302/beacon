@@ -80,19 +80,8 @@ export interface CreateGpsPointsBatch {
     'points': Array<CreateGpsPoint> | null;
 }
 export interface CreateVehicleRequestBody {
-    'device_sn'?: string;
     'plate_number': string;
-    'vehicle_type': CreateVehicleRequestBodyVehicleTypeEnum;
 }
-
-export const CreateVehicleRequestBodyVehicleTypeEnum = {
-    Car: 'car',
-    Bus: 'bus',
-    Truck: 'truck',
-    Van: 'van',
-} as const;
-
-export type CreateVehicleRequestBodyVehicleTypeEnum = typeof CreateVehicleRequestBodyVehicleTypeEnum[keyof typeof CreateVehicleRequestBodyVehicleTypeEnum];
 
 export interface GpsPointResponse {
     'bearing': number;
@@ -115,21 +104,10 @@ export interface VehicleHistoryResponse {
 }
 export interface VehicleResponse {
     'created_at': string;
-    'device_sn': string;
     'id': number;
     'last_coordinate': Coordinate;
     'plate_number': string;
-    'vehicle_type': VehicleResponseVehicleTypeEnum;
 }
-
-export const VehicleResponseVehicleTypeEnum = {
-    Car: 'car',
-    Bus: 'bus',
-    Truck: 'truck',
-    Van: 'van',
-} as const;
-
-export type VehicleResponseVehicleTypeEnum = typeof VehicleResponseVehicleTypeEnum[keyof typeof VehicleResponseVehicleTypeEnum];
 
 
 /**

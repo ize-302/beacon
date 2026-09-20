@@ -34,6 +34,9 @@ type Config struct {
 	// burst does not wait for the interval. Defaults to 500.
 	BatchSize int
 
+	// AdmitRate is how many vehicles may be started per second. Defaults to 100.
+	AdmitRate int
+
 	// MinInterval/MaxInterval bound how long a vehicle waits between hops. Each
 	// vehicle picks a fixed interval in this range when it is admitted.
 	MinInterval time.Duration
@@ -53,6 +56,9 @@ func (c *Config) applyDefaults() {
 	if c.BatchSize <= 0 {
 		c.BatchSize = 500
 	}
+	if c.AdmitRate <= 0 {
+		c.AdmitRate = 100
+	}
 	if c.MinInterval <= 0 {
 		c.MinInterval = 1 * time.Second
 	}
@@ -70,6 +76,7 @@ type world struct {
 	planner *planner
 	sender  *sender
 	client  *apiClient
+	admit   *admitter // nil admits everything immediately (tests)
 
 	mu      sync.Mutex
 	running map[int]struct{}
@@ -86,6 +93,7 @@ func Run(ctx context.Context, cfg Config) error {
 		planner: newPlanner(cfg.Graph, cfg.Planners),
 		sender:  newSender(client, cfg.SendQueue, cfg.BatchInterval, cfg.BatchSize),
 		client:  client,
+		admit:   newAdmitter(ctx, cfg.AdmitRate),
 		running: make(map[int]struct{}),
 	}
 
@@ -122,6 +130,47 @@ func Run(ctx context.Context, cfg Config) error {
 	return nil
 }
 
+// admitter hands out start-up slots at a fixed rate.
+// Every vehicle goroutine waits for one before doing any work
+type admitter struct {
+	slots chan struct{}
+}
+
+func newAdmitter(ctx context.Context, perSecond int) *admitter {
+	a := &admitter{slots: make(chan struct{})}
+	go func() {
+		tick := time.NewTicker(time.Second / time.Duration(perSecond))
+		defer tick.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+			}
+			select {
+			case a.slots <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return a
+}
+
+// wait blocks for a slot. It reports false if ctx ended first. A nil admitter
+// never blocks.
+func (a *admitter) wait(ctx context.Context) bool {
+	if a == nil {
+		return ctx.Err() == nil
+	}
+	select {
+	case <-a.slots:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
 // startVehicle checks the map before spawning so existing vehicles are untouched.
 func (w *world) startVehicle(ctx context.Context, v vehicles.VehicleResponse) {
 	w.mu.Lock()
@@ -133,17 +182,21 @@ func (w *world) startVehicle(ctx context.Context, v vehicles.VehicleResponse) {
 	w.mu.Unlock()
 
 	go w.driveVehicle(ctx, v)
-	log.Printf("simulator: started vehicle %d (%s)", v.ID, v.PlateNumber)
 }
 
 func (w *world) driveVehicle(ctx context.Context, v vehicles.VehicleResponse) {
+	if !w.admit.wait(ctx) {
+		return
+	}
+	log.Printf("simulator: started vehicle %d (%s)", v.ID, v.PlateNumber)
+
 	// Seeded per vehicle so a given seed reproduces the same route choices, and
 	// so vehicles do not contend on the locked global source.
 	rng := rand.New(rand.NewSource(w.cfg.Seed + int64(v.ID)))
 
 	var current int64
 	if v.LastCoordinate != nil {
-		current = closestNode(w.graph.Nodes, v.LastCoordinate.Latitude, v.LastCoordinate.Longitude)
+		current = w.graph.NearestNode(v.LastCoordinate.Latitude, v.LastCoordinate.Longitude)
 	} else {
 		current = w.graph.RandomNode(rng)
 	}
@@ -154,49 +207,65 @@ func (w *world) driveVehicle(ctx context.Context, v vehicles.VehicleResponse) {
 	if spread := int64(w.cfg.MaxInterval - w.cfg.MinInterval); spread > 0 {
 		interval += time.Duration(rng.Int63n(spread + 1))
 	}
-	t := time.NewTicker(interval)
-	defer t.Stop()
 
 	var path []int64
+
+	// step advances the vehicle one node, planning a new route first if the
+	// current one is used up. It reports false once ctx is cancelled.
+	step := func() bool {
+		for len(path) == 0 {
+			if ctx.Err() != nil {
+				return false
+			}
+			dest := w.graph.RandomNode(rng)
+			if dest == current {
+				continue
+			}
+			// Route searches are capped globally; this may wait for a slot.
+			path = w.planner.plan(ctx, current, dest)
+			if len(path) > 1 {
+				path = path[1:] // drop current node
+			} else {
+				path = nil
+			}
+		}
+
+		prevNode := w.graph.Nodes[current]
+		current = path[0]
+		path = path[1:]
+
+		node, ok := w.graph.Nodes[current]
+		if !ok {
+			return true
+		}
+		w.sender.enqueue(gpspoints.CreateGpsPoint{
+			VehicleID: v.ID,
+			Latitude:  node.Lat,
+			Longitude: node.Lon,
+			Bearing:   computeBearing(prevNode, node),
+			Timestamp: time.Now().UnixMilli(),
+		})
+		return true
+	}
+
+	// Set off as soon as the vehicle is admitted rather than after its first
+	// interval. The ticker starts afterwards so the cadence runs from the first
+	// hop, and a slow first route search cannot leave a tick queued behind it.
+	if !step() {
+		return
+	}
+
+	t := time.NewTicker(interval)
+	defer t.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			// determine new path when current one is exhausted
-			for len(path) == 0 {
-				if ctx.Err() != nil {
-					return
-				}
-				dest := w.graph.RandomNode(rng)
-				if dest == current {
-					continue
-				}
-				// Route searches are capped globally; this may wait for a slot.
-				path = w.planner.plan(ctx, current, dest)
-				if len(path) > 1 {
-					path = path[1:] // drop current node
-				} else {
-					path = nil
-				}
+			if !step() {
+				return
 			}
-
-			prevNode := w.graph.Nodes[current]
-			current = path[0]
-			path = path[1:]
-
-			node, ok := w.graph.Nodes[current]
-			if !ok {
-				continue
-			}
-			w.sender.enqueue(gpspoints.CreateGpsPoint{
-				VehicleID: v.ID,
-				Latitude:  node.Lat,
-				Longitude: node.Lon,
-				Bearing:   computeBearing(prevNode, node),
-				Timestamp: time.Now().UnixMilli(),
-			})
 		}
 	}
 }

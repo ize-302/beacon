@@ -60,7 +60,6 @@ const MAX_FAIL_RATE = parseFloat(__ENV.MAX_FAIL_RATE || '0.01');
 // path, not the road graph.
 const LAT_MIN = 6.39, LAT_MAX = 6.70;
 const LON_MIN = 3.15, LON_MAX = 3.55;
-const VEHICLE_TYPES = ['car', 'bus', 'truck', 'van'];
 
 const batchWriteFailRate = new Rate('gps_batch_write_failures');
 const vehicleCreateFailRate = new Rate('vehicle_create_failures');
@@ -194,7 +193,6 @@ export function vehicleChurn() {
     `${BASE_URL}/api/v1/vehicles`,
     JSON.stringify({
       plate_number: plate,
-      vehicle_type: VEHICLE_TYPES[randomInt(0, VEHICLE_TYPES.length - 1)],
     }),
     { headers: { 'Content-Type': 'application/json' }, tags: { name: 'vehicle_create' } }
   );

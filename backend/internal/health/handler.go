@@ -15,7 +15,7 @@ type HealthHandler struct {
 
 type HealthCheckResponse struct{}
 
-func NewHealthHander(apiGroup *huma.Group) *HealthHandler {
+func NewHealthHandler(apiGroup *huma.Group) *HealthHandler {
 	return &HealthHandler{APIGroup: apiGroup}
 }
 

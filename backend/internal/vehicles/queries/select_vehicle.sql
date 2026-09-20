@@ -1,8 +1,6 @@
 SELECT
 	v.id,
 	v.plate_number,
-	v.vehicle_type,
-	COALESCE(v.device_sn, ''),
 	v.created_at,
 	lp.latitude,
 	lp.longitude,

@@ -1,10 +1,14 @@
-.PHONY: dev api sim test test-integration test-all
+.PHONY: dev api sim seed test test-integration test-all
 
 api:
 	air -c .air.api.toml
 
 sim:
 	air -c .air.simulator.toml
+
+# Create N vehicles through the running API: `make seed N=50`
+seed:
+	go run ./cmd/seed -n $(or $(N),10)
 
 dev:
 	@trap 'kill 0' EXIT; \
